@@ -1,0 +1,20 @@
+:root {
+  /* BuenServ semantic design tokens */
+  --bs-color-primary: #0FA37F;
+  --bs-color-primary-hover: #08735A;
+  --bs-color-secondary: #E8703A;
+  --bs-color-ink: #1A1F1D;
+  --bs-color-muted: #66706B;
+  --bs-color-surface: #FFFFFF;
+  --bs-color-canvas: #FAF9F6;
+  --bs-color-border: #E8E8E2;
+  --bs-color-success: #22C55E;
+  --bs-color-warning: #B86D00;
+  --bs-color-error: #C93636;
+  --bs-space-1: 4px; --bs-space-2: 8px; --bs-space-3: 12px; --bs-space-4: 16px;
+  --bs-space-5: 24px; --bs-space-6: 32px; --bs-space-7: 48px; --bs-space-8: 64px;
+  --bs-radius-control: 8px; --bs-radius-card: 16px; --bs-radius-pill: 999px;
+  --bs-shadow-card: 0 13px 32px rgba(23,53,42,.07);
+  --bs-font-body: Inter, ui-sans-serif, system-ui, sans-serif;
+  --bs-font-display: "Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
+}
