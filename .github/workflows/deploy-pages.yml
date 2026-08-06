@@ -16,9 +16,7 @@ concurrency:
 
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    # No protected environment: deploy immediately after a push.
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
