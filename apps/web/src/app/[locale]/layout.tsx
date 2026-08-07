@@ -1,3 +1,4 @@
+import '../globals.css';
 import type {Metadata} from 'next';
 import {Inter, Manrope} from 'next/font/google';
 import {hasLocale, NextIntlClientProvider} from 'next-intl';
