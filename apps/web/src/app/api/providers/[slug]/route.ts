@@ -10,7 +10,7 @@ export async function GET(_: NextRequest, {params}: {params: Promise<{slug: stri
   if (!parsed.success) return NextResponse.json({error: 'Invalid provider slug'}, {status: 400});
   try {
     const supabase = createPublicDirectoryClient();
-    const {data, error} = await supabase.from('providers').select('id,slug,photo_path,rating,reviews_count,accepts_usdt,bio,provider_categories(price_from_ars,categories(slug)),provider_barrios(barrios(slug,name_es,name_ru,name_en)),reviews(rating,body,locale,created_at)').eq('status', 'approved').eq('slug', parsed.data.slug).maybeSingle();
+    const {data, error} = await supabase.from('providers').select('id,slug,photo_path,rating,reviews_count,accepts_usdt,bio,profiles(display_name),provider_categories(price_from_ars,categories(slug)),provider_barrios(barrios(slug,name_es,name_ru,name_en)),reviews(rating,body,locale,created_at)').eq('status', 'approved').eq('slug', parsed.data.slug).maybeSingle();
     if (error) return NextResponse.json({error: 'Directory unavailable'}, {status: 503});
     if (!data) return NextResponse.json({error: 'Not found'}, {status: 404});
     return NextResponse.json({provider: data});
