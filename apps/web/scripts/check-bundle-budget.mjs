@@ -1,18 +1,23 @@
-import {readdir, stat} from 'node:fs/promises';
+import {readFile, stat} from 'node:fs/promises';
+import {gzipSync} from 'node:zlib';
 import {join} from 'node:path';
 
-const root = join(process.cwd(), '.next/static/chunks');
+const root = process.cwd();
+const manifest = JSON.parse(await readFile(join(root, '.next/app-build-manifest.json'), 'utf8'));
 const limit = 220 * 1024;
-async function files(dir) {
-  const entries = await readdir(dir, {withFileTypes: true});
-  return (await Promise.all(entries.map(entry => entry.isDirectory() ? files(join(dir, entry.name)) : [join(dir, entry.name)]))).flat();
+const publicRoutes = Object.keys(manifest.pages).filter(route => route === '/[locale]/page' || route.startsWith('/[locale]/'));
+
+if (!publicRoutes.length) throw new Error('No locale app routes found in app-build-manifest.json.');
+
+let failed = false;
+for (const route of publicRoutes) {
+  const chunks = [...new Set(manifest.pages[route].filter(file => file.endsWith('.js')))];
+  const bytes = await Promise.all(chunks.map(async file => gzipSync(await readFile(join(root, '.next', file))).length));
+  const total = bytes.reduce((sum, value) => sum + value, 0);
+  console.log(`${route}: ${(total / 1024).toFixed(1)} KB gzip across ${chunks.length} initial chunks`);
+  if (total > limit) {
+    console.error(`Budget exceeded for ${route}: ${(total / 1024).toFixed(1)} KB > ${(limit / 1024).toFixed(0)} KB gzip`);
+    failed = true;
+  }
 }
-try {
-  const js = (await files(root)).filter(file => file.endsWith('.js'));
-  const total = (await Promise.all(js.map(file => stat(file)))).reduce((sum, item) => sum + item.size, 0);
-  console.log(`Static JS emitted: ${(total / 1024).toFixed(1)} KB (uncompressed audit value)`);
-  if (total > 900 * 1024) throw new Error('Static JS exceeds 900 KB uncompressed guardrail. Inspect route chunks before merging.');
-} catch (error) {
-  console.error(error.message);
-  process.exit(1);
-}
+if (failed) process.exit(1);

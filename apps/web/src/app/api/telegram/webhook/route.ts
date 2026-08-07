@@ -1,3 +1,4 @@
+import {timingSafeEqual} from 'node:crypto';
 import {NextRequest, NextResponse} from 'next/server';
 import {createAdminClient} from '@/lib/supabase/admin';
 import {getServerEnv} from '@/lib/env';
@@ -13,12 +14,26 @@ function normalizeLocale(language?: string) {
   return 'es-AR';
 }
 
+function secretsMatch(received: string | null, expected: string) {
+  if (!received) return false;
+  const left = Buffer.from(received);
+  const right = Buffer.from(expected);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
 export async function POST(request: NextRequest) {
   const env = getServerEnv();
-  const secret = request.headers.get('x-telegram-bot-api-secret-token');
-  if (secret !== env.TELEGRAM_WEBHOOK_SECRET) return NextResponse.json({error: 'Unauthorized'}, {status: 401});
+  if (!secretsMatch(request.headers.get('x-telegram-bot-api-secret-token'), env.TELEGRAM_WEBHOOK_SECRET)) {
+    return NextResponse.json({error: 'Unauthorized'}, {status: 401});
+  }
 
-  const update = await request.json() as TelegramUpdate;
+  let update: TelegramUpdate;
+  try {
+    update = await request.json() as TelegramUpdate;
+  } catch {
+    return NextResponse.json({error: 'Invalid JSON'}, {status: 400});
+  }
+
   const user = update.message?.from;
   if (!user) return NextResponse.json({ok: true});
 
