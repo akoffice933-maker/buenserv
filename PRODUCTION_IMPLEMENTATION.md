@@ -82,3 +82,20 @@ These cannot be safely completed without the project owner:
 - Provider/category images: ≤80 KB target where possible.
 - No third-party script on initial route unless strictly necessary.
 - LCP ≤2.5s, CLS ≤0.1, INP ≤200ms.
+
+---
+
+## Directory migration status
+
+The production scaffold currently has two public read APIs:
+
+```text
+GET /api/categories
+GET /api/providers?category=&barrio=&usdt=&limit=
+```
+
+`/api/providers` validates input with Zod, reads only approved providers through the RLS-limited public Supabase client, and supports category, barrio, USDT and limit filters.
+
+The initial locale category routes deliberately use the static allow-list in `apps/web/src/lib/categories.ts` so they can be statically generated and reviewed before Supabase credentials/data are available.
+
+> **TODO(directory-sync):** when category CMS/admin management is introduced, migrate category route generation and catalogue cards to `GET /api/categories` / a server-side directory query. Remove the static allow-list only after slug stability and redirects have been defined.
