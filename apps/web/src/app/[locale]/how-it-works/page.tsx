@@ -1,5 +1,8 @@
 import {getTranslations} from 'next-intl/server';
 import {SiteHeader} from '@/components/site-header';
+import {localizedMetadata} from '@/lib/seo';
+
+export async function generateMetadata({params}: {params: Promise<{locale: string}>}) { const {locale} = await params; const t = await getTranslations({locale, namespace: 'how'}); return localizedMetadata(locale, 'how-it-works', t('title'), t('description')); }
 
 export default async function HowItWorksPage({params}: {params: Promise<{locale: string}>}) {
   const {locale} = await params; const t = await getTranslations('how'); const steps = t.raw('steps') as string[];

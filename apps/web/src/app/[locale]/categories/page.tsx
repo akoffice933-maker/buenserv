@@ -2,6 +2,12 @@ import Link from 'next/link';
 import {getTranslations} from 'next-intl/server';
 import {SiteHeader} from '@/components/site-header';
 import {CATEGORY_SLUGS} from '@/lib/categories';
+import {localizedMetadata} from '@/lib/seo';
+
+export async function generateMetadata({params}: {params: Promise<{locale: string}>}) {
+  const {locale} = await params; const t = await getTranslations({locale, namespace: 'categories'});
+  return localizedMetadata(locale, 'categories', t('title'), t('description'));
+}
 
 export default async function CategoriesPage({params}: {params: Promise<{locale: string}>}) {
   const {locale} = await params;

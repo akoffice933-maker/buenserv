@@ -1,6 +1,12 @@
 import {getTranslations} from 'next-intl/server';
 import {SiteHeader} from '@/components/site-header';
 import {getTelegramDeepLink} from '@/lib/telegram/deep-link';
+import {localizedMetadata} from '@/lib/seo';
+
+export async function generateMetadata({params}: {params: Promise<{locale: string}>}) {
+  const {locale} = await params; const t = await getTranslations({locale, namespace: 'home'});
+  return localizedMetadata(locale, '', t('title'), t('description'));
+}
 
 export default async function HomePage({params}: {params: Promise<{locale: string}>}) {
   const {locale} = await params;
