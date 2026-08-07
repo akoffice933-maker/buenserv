@@ -172,3 +172,27 @@ Deployment must not be considered production-ready until this workflow is green 
 ### Production URL requirement
 
 `NEXT_PUBLIC_APP_URL` must be set to the owned canonical HTTPS domain in Vercel before the first production deployment. It drives canonical URLs, `hreflang`, `robots.txt` sitemap location and `sitemap.xml`. The `https://buenserv.com` value in source is a development fallback only and must not be relied on for a live deployment.
+
+### Pricing claim boundary
+
+Public provider messaging currently uses a non-dated **introductory period**. Do not advertise a precise free-period duration, paid tariff or automatic billing transition until billing/trial tracking exists.
+
+Before a dated trial offer is published, implement at minimum:
+
+```text
+provider_billing_trials
+- provider_id
+- started_at
+- ends_at
+- status
+- offer_version
+
+billing_events
+- provider_id
+- event type
+- amount_ars
+- provider reference
+- idempotency key
+```
+
+The billing/trial service must be server-side, auditable and legally reviewed before any provider can reach a paid transition.
