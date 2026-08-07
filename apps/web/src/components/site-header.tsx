@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import {getTranslations} from 'next-intl/server';
-
-const locales = ['es', 'ru', 'en'] as const;
+import {LocaleSwitcher} from '@/components/locale-switcher';
 
 export async function SiteHeader({locale}: {locale: string}) {
   const t = await getTranslations('navigation');
@@ -15,9 +14,7 @@ export async function SiteHeader({locale}: {locale: string}) {
         <Link href={`/${locale}/faq`}>FAQ</Link>
       </nav>
       <div className="flex items-center gap-2">
-        <div aria-label={t('language')} className="flex gap-0.5 rounded-lg bg-black/5 p-0.5">
-          {locales.map(item => <Link key={item} href={`/${item}`} className={`rounded-md px-2 py-1 text-[11px] font-extrabold no-underline ${item === locale ? 'bg-white text-bs-ink shadow-sm' : 'text-bs-muted'}`}>{item.toUpperCase()}</Link>)}
-        </div>
+        <LocaleSwitcher locale={locale} label={t('language')}/>
         <a href="https://t.me" className="hidden rounded-lg bg-bs-primary px-3 py-2 text-xs font-extrabold text-white no-underline hover:bg-bs-primary-dark sm:block">{t('telegram')} ↗</a>
       </div>
     </div>
