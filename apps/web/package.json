@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "check:bundle": "node scripts/check-bundle-budget.mjs"
   },
   "dependencies": {
@@ -29,6 +30,7 @@
     "eslint-config-next": "^16.3.0",
     "postcss": "^8.5.26",
     "tailwindcss": "^4.3.3",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.10"
   }
 }
