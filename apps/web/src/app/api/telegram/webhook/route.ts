@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
   if (profileError || !profile) return NextResponse.json({error: 'Temporary error'}, {status: 500});
 
   if (startsSupport(message.text)) {
+    await supabase.from('telegram_support_sessions').upsert({profile_id: profile.id}, {onConflict: 'profile_id'});
     await sendTelegramMessage(env, chatId, onboardingText(locale, 'support'));
     await markProcessed();
     return NextResponse.json({ok: true});
@@ -69,6 +70,17 @@ export async function POST(request: NextRequest) {
     await sendTelegramMessage(env, chatId, `${onboardingText(locale, 'welcome')}\n\n${onboardingText(locale, 'category')}`);
     await markProcessed();
     return NextResponse.json({ok: true});
+  }
+
+  const {data: supportSession} = await supabase.from('telegram_support_sessions').select('profile_id').eq('profile_id', profile.id).maybeSingle();
+  if (supportSession) {
+    const details = message.text?.trim() ?? '';
+    if (details.length < 10 || details.length > 2000) { await sendTelegramMessage(env, chatId, onboardingText(locale, 'support')); await markProcessed(); return NextResponse.json({ok: true}); }
+    const {error: supportError} = await supabase.from('support_requests').insert({profile_id: profile.id, details, status: 'open'});
+    if (supportError) return NextResponse.json({error: 'Support submission failed'}, {status: 500});
+    await supabase.from('telegram_support_sessions').delete().eq('profile_id', profile.id);
+    await sendTelegramMessage(env, chatId, onboardingText(locale, 'supportSubmitted'));
+    await markProcessed(); return NextResponse.json({ok: true});
   }
 
   const {data: reportSession} = await supabase.from('telegram_report_sessions').select('provider_id,step,reason').eq('profile_id', profile.id).maybeSingle();
