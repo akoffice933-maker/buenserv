@@ -133,3 +133,17 @@ PATCH /api/admin/moderation  → approve / reject / suspend
 ```
 
 Both require a Supabase Auth user mapped to `profiles.auth_user_id` with `admin` or `moderator` role. `support` can read the queue but cannot change a moderation decision. Decisions are committed through `moderate_provider(...)` and create audit events atomically with the status update.
+
+### First admin bootstrap
+
+Before `/admin` can be used, create the first Supabase Auth user through `/admin/login`, then map that user to an internal BuenServ profile in the Supabase SQL Editor:
+
+```sql
+update public.profiles
+set auth_user_id = '<auth.users.id UUID>', role = 'admin'
+where telegram_user_id = <internal_admin_telegram_id>;
+```
+
+Use the UUID from Supabase **Authentication → Users** after the magic-link login. Until this mapping exists, a successful login correctly returns `403` from RBAC because the user has no internal role.
+
+Never assign `admin` from a public client route. Future admin invitation tooling must execute this mapping server-side and create an audit event.
