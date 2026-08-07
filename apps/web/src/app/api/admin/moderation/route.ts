@@ -3,6 +3,8 @@ import {z} from 'zod';
 import {requireAdminActor, isResponse} from '@/lib/admin-auth';
 import {createAdminClient} from '@/lib/supabase/admin';
 import {normalizeModerationProviders} from '@/lib/moderation';
+import {getServerEnv} from '@/lib/env';
+import {onboardingText, sendTelegramMessage, type BotLocale} from '@/lib/telegram/provider-onboarding';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,12 +24,24 @@ export async function PATCH(request: NextRequest) {
   if (actor.role === 'support') return NextResponse.json({error: 'Forbidden'}, {status: 403});
   const input = decisionSchema.safeParse(await request.json().catch(() => null));
   if (!input.success) return NextResponse.json({error: 'Invalid moderation request'}, {status: 400});
-  const {error} = await createAdminClient().rpc('moderate_provider', {
+  const admin = createAdminClient();
+  const {data: target, error: targetError} = await admin.from('providers').select('profiles(telegram_user_id,locale)').eq('id', input.data.providerId).single();
+  if (targetError || !target) return NextResponse.json({error: 'Provider not found'}, {status: 404});
+  const {error} = await admin.rpc('moderate_provider', {
     p_provider_id: input.data.providerId,
     p_actor_profile_id: actor.profileId,
     p_decision: input.data.decision,
     p_reason: input.data.reason ?? null
   });
   if (error) return NextResponse.json({error: 'Moderation update failed'}, {status: 503});
-  return NextResponse.json({ok: true});
+
+  const profile = (Array.isArray(target.profiles) ? target.profiles[0] : target.profiles) as {telegram_user_id?: number; locale?: string} | null;
+  let notification: 'sent' | 'skipped' | 'failed' = 'skipped';
+  if (profile?.telegram_user_id) {
+    const locale: BotLocale = profile.locale === 'ru' ? 'ru' : profile.locale === 'en' ? 'en' : 'es-AR';
+    const base = onboardingText(locale, input.data.decision === 'approved' ? 'approved' : 'rejected');
+    const reason = input.data.decision === 'rejected' && input.data.reason ? `\n\n${input.data.reason}` : '';
+    try { await sendTelegramMessage(getServerEnv(), profile.telegram_user_id, `${base}${reason}`); notification = 'sent'; } catch { notification = 'failed'; }
+  }
+  return NextResponse.json({ok: true, notification});
 }
