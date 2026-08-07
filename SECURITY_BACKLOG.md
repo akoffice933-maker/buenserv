@@ -87,3 +87,16 @@ https://t.me/<bot_username>?start=report_<provider_id>
 ```
 
 The Telegram flow persists `reporter_profile_id` and bypasses the anonymous web-report trust limitation. The web endpoint remains rate-limited as a fallback when a bot username is not configured.
+
+## Provider photo storage preparation
+
+Migration `012_private_provider_photo_storage.sql` creates a private `provider-photos` bucket with a 5 MB limit and image MIME allow-list. It intentionally has no public URL policy and no browser upload policy.
+
+Before any Telegram file is copied into this bucket, implement a server-only image worker that:
+
+1. downloads the file using Telegram's API;
+2. verifies actual file signature, MIME type, size and dimensions;
+3. strips metadata/EXIF;
+4. generates controlled WebP/AVIF variants;
+5. records `provider_photos.status = pending`;
+6. exposes a public variant only after moderator approval.
