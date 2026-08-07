@@ -55,3 +55,19 @@ export function parseArsPrice(value: string) {
   const price = Number(normalized);
   return Number.isFinite(price) && price > 0 && price <= 100_000_000 ? Math.round(price) : null;
 }
+
+const categoryInputs: Record<string, string> = {
+  limpieza: 'limpieza', cleaning: 'limpieza', 'уборка': 'limpieza',
+  reparaciones: 'reparaciones', repairs: 'reparaciones', ремонт: 'reparaciones', electricista: 'reparaciones', электрик: 'reparaciones',
+  mascotas: 'mascotas', pets: 'mascotas', питомцы: 'mascotas',
+  mudanzas: 'mudanzas', moving: 'mudanzas', переезды: 'mudanzas',
+  clases: 'clases', lessons: 'clases', занятия: 'clases',
+  mensajeria: 'mensajeria', mensajería: 'mensajeria', delivery: 'mensajeria', курьеры: 'mensajeria',
+  taxi: 'taxi-traslados', traslados: 'taxi-traslados', 'taxi y traslados': 'taxi-traslados', 'такси': 'taxi-traslados', transfers: 'taxi-traslados'
+};
+
+const barrioInputs: Record<string, string> = {palermo: 'palermo', recoleta: 'recoleta', belgrano: 'belgrano', caballito: 'caballito', кабальито: 'caballito', бельграно: 'belgrano', реколета: 'recoleta', палермо: 'palermo'};
+
+export function parseCategory(value: string) { return categoryInputs[value.trim().toLowerCase()] ?? null; }
+export function parseBarrio(value: string) { return barrioInputs[value.trim().toLowerCase()] ?? null; }
+export function isConfirmation(value: string) { return ['confirmar', 'подтвердить', 'confirm'].includes(value.trim().toLowerCase()); }

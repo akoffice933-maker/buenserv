@@ -99,3 +99,26 @@ GET /api/providers?category=&barrio=&usdt=&limit=
 The initial locale category routes deliberately use the static allow-list in `apps/web/src/lib/categories.ts` so they can be statically generated and reviewed before Supabase credentials/data are available.
 
 > **TODO(directory-sync):** when category CMS/admin management is introduced, migrate category route generation and catalogue cards to `GET /api/categories` / a server-side directory query. Remove the static allow-list only after slug stability and redirects have been defined.
+
+---
+
+## Telegram provider onboarding status
+
+The provider flow now progresses through persisted session steps:
+
+```text
+/start provider
+→ category
+→ barrio
+→ description
+→ ARS price
+→ Telegram photo file ID
+→ explicit confirmation
+→ providers.status = pending
+```
+
+On confirmation, the webhook creates/updates a pending `providers` record and its category/barrio relations, then removes the session. The supplied Telegram photo file ID remains private in `onboarding_payload`; it is **not** published as `photo_path`.
+
+### Moderation boundary
+
+The database now has a real pending-provider source for a moderation queue. The moderator-facing queue, approval/rejection actions, photo transfer to private Supabase Storage and notification workflow remain the next implementation task. Do not describe the admin moderation UI as complete until those routes and RBAC controls exist.
