@@ -8,7 +8,9 @@ import {onboardingText, sendTelegramMessage, type BotLocale} from '@/lib/telegra
 
 export const dynamic = 'force-dynamic';
 
-const decisionSchema = z.object({providerId: z.string().uuid(), decision: z.enum(['approved', 'rejected', 'suspended']), reason: z.string().max(1000).optional()});
+const decisionSchema = z.object({providerId: z.string().uuid(), decision: z.enum(['approved', 'rejected', 'suspended']), reason: z.string().max(1000).optional()}).superRefine((value, context) => {
+  if ((value.decision === 'rejected' || value.decision === 'suspended') && !value.reason?.trim()) context.addIssue({code: 'custom', message: 'Reason is required'});
+});
 
 export async function GET() {
   const actor = await requireAdminActor();
@@ -39,8 +41,8 @@ export async function PATCH(request: NextRequest) {
   let notification: 'sent' | 'skipped' | 'failed' = 'skipped';
   if (profile?.telegram_user_id) {
     const locale: BotLocale = profile.locale === 'ru' ? 'ru' : profile.locale === 'en' ? 'en' : 'es-AR';
-    const base = onboardingText(locale, input.data.decision === 'approved' ? 'approved' : 'rejected');
-    const reason = input.data.decision === 'rejected' && input.data.reason ? `\n\n${input.data.reason}` : '';
+    const base = onboardingText(locale, input.data.decision);
+    const reason = input.data.decision !== 'approved' && input.data.reason ? `\n\n${input.data.reason}` : '';
     try { await sendTelegramMessage(getServerEnv(), profile.telegram_user_id, `${base}${reason}`); notification = 'sent'; } catch { notification = 'failed'; }
   }
   return NextResponse.json({ok: true, notification});

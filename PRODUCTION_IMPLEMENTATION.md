@@ -164,3 +164,7 @@ npm ci
 ```
 
 Deployment must not be considered production-ready until this workflow is green against the exact lockfile used by the deployment.
+
+### Suspension semantics
+
+`approved`, `rejected` and `suspended` have separate provider notification copy. `rejected` and `suspended` require a moderation reason at the API validation layer. The current dashboard exposes approve/reject only; suspension UI will be added separately with an explicit removal-oriented confirmation flow rather than reusing rejection wording.

@@ -20,5 +20,6 @@ describe('provider onboarding utilities', () => {
     expect(onboardingText('es-AR', 'category')).toContain('servicio');
     expect(onboardingText('ru', 'category')).toContain('услугу');
     expect(onboardingText('en', 'category')).toContain('service');
+    expect(onboardingText('ru', 'suspended')).toContain('снят');
   });
 });

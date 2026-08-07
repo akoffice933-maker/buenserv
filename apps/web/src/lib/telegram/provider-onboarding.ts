@@ -3,7 +3,7 @@ import type {ServerEnv} from '@/lib/env';
 export type BotLocale = 'es-AR' | 'ru' | 'en';
 export type OnboardingStep = 'category' | 'barrio' | 'description' | 'price' | 'photo' | 'confirm';
 
-const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 'submissionFailed' | 'invalidPrice' | 'approved' | 'rejected', string>> = {
+const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 'submissionFailed' | 'invalidPrice' | 'approved' | 'rejected' | 'suspended', string>> = {
   'es-AR': {
     welcome: '¡Bien! Vamos a crear tu perfil profesional en BuenServ.',
     category: '¿Qué servicio ofrecés? Respondé con una categoría.',
@@ -16,6 +16,7 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     submissionFailed: 'No pudimos enviar el perfil ahora. Esperá un momento y escribí CONFIRMAR otra vez.',
     approved: '¡Tu perfil fue aprobado! Ya puede aparecer en el directorio de BuenServ.',
     rejected: 'Tu perfil necesita algunos ajustes antes de publicarse. Revisá el motivo enviado por el equipo de BuenServ.',
+    suspended: 'Tu perfil fue suspendido temporalmente del directorio. Revisá el motivo enviado por el equipo de BuenServ.',
     invalidPrice: 'Ingresá solo un número válido en ARS, sin símbolos.'
   },
   ru: {
@@ -30,6 +31,7 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     submissionFailed: 'Сейчас не удалось отправить профиль. Подождите немного и снова напишите ПОДТВЕРДИТЬ.',
     approved: 'Ваш профиль одобрен! Теперь он может появиться в каталоге BuenServ.',
     rejected: 'Профилю нужны небольшие правки перед публикацией. Посмотрите причину от команды BuenServ.',
+    suspended: 'Ваш профиль временно снят из каталога. Посмотрите причину от команды BuenServ.',
     invalidPrice: 'Укажите корректную цену в ARS только цифрами, без символов.'
   },
   en: {
@@ -44,6 +46,7 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     submissionFailed: 'We could not submit your profile right now. Please wait a moment and type CONFIRM again.',
     approved: 'Your profile was approved! It can now appear in the BuenServ directory.',
     rejected: 'Your profile needs a few updates before publication. Please review the reason from the BuenServ team.',
+    suspended: 'Your profile was temporarily removed from the directory. Please review the reason from the BuenServ team.',
     invalidPrice: 'Enter a valid ARS price using numbers only, without symbols.'
   }
 };
