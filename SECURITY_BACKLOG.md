@@ -77,3 +77,13 @@ Before production launch:
 - add moderator queue filters for repeated reports and reason categories;
 - add Vercel/edge rate limiting when deployment infrastructure is configured;
 - never surface reporter identity to the reported provider.
+
+### Telegram-authenticated reports implemented
+
+Public provider profiles now prefer a bot deep-link:
+
+```text
+https://t.me/<bot_username>?start=report_<provider_id>
+```
+
+The Telegram flow persists `reporter_profile_id` and bypasses the anonymous web-report trust limitation. The web endpoint remains rate-limited as a fallback when a bot username is not configured.

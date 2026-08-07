@@ -3,7 +3,7 @@ import type {ServerEnv} from '@/lib/env';
 export type BotLocale = 'es-AR' | 'ru' | 'en';
 export type OnboardingStep = 'category' | 'barrio' | 'description' | 'price' | 'photo' | 'confirm';
 
-const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 'submissionFailed' | 'invalidPrice' | 'approved' | 'rejected' | 'suspended', string>> = {
+const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 'submissionFailed' | 'invalidPrice' | 'approved' | 'rejected' | 'suspended' | 'reportReason' | 'reportDetails' | 'reportSubmitted', string>> = {
   'es-AR': {
     welcome: '¡Bien! Vamos a crear tu perfil profesional en BuenServ.',
     category: '¿Qué servicio ofrecés? Respondé con una categoría.',
@@ -17,6 +17,9 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     approved: '¡Tu perfil fue aprobado! Ya puede aparecer en el directorio de BuenServ.',
     rejected: 'Tu perfil necesita algunos ajustes antes de publicarse. Revisá el motivo enviado por el equipo de BuenServ.',
     suspended: 'Tu perfil fue suspendido temporalmente del directorio. Revisá el motivo enviado por el equipo de BuenServ.',
+    reportReason: '¿Cuál es el motivo? Respondé: perfil, respuesta, spam, seguridad u otro.',
+    reportDetails: 'Contanos qué pasó con un poco más de detalle.',
+    reportSubmitted: 'Gracias. Recibimos tu reporte y lo revisaremos.',
     invalidPrice: 'Ingresá solo un número válido en ARS, sin símbolos.'
   },
   ru: {
@@ -32,6 +35,9 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     approved: 'Ваш профиль одобрен! Теперь он может появиться в каталоге BuenServ.',
     rejected: 'Профилю нужны небольшие правки перед публикацией. Посмотрите причину от команды BuenServ.',
     suspended: 'Ваш профиль временно снят из каталога. Посмотрите причину от команды BuenServ.',
+    reportReason: 'Укажите причину: профиль, ответ, спам, безопасность или другое.',
+    reportDetails: 'Расскажите подробнее, что произошло.',
+    reportSubmitted: 'Спасибо. Мы получили жалобу и рассмотрим её.',
     invalidPrice: 'Укажите корректную цену в ARS только цифрами, без символов.'
   },
   en: {
@@ -47,6 +53,9 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     approved: 'Your profile was approved! It can now appear in the BuenServ directory.',
     rejected: 'Your profile needs a few updates before publication. Please review the reason from the BuenServ team.',
     suspended: 'Your profile was temporarily removed from the directory. Please review the reason from the BuenServ team.',
+    reportReason: 'What is the reason? Reply: profile, response, spam, safety or other.',
+    reportDetails: 'Tell us what happened in a little more detail.',
+    reportSubmitted: 'Thank you. We received your report and will review it.',
     invalidPrice: 'Enter a valid ARS price using numbers only, without symbols.'
   }
 };
@@ -85,3 +94,12 @@ const barrioInputs: Record<string, string> = {palermo: 'palermo', recoleta: 'rec
 export function parseCategory(value: string) { return categoryInputs[value.trim().toLowerCase()] ?? null; }
 export function parseBarrio(value: string) { return barrioInputs[value.trim().toLowerCase()] ?? null; }
 export function isConfirmation(value: string) { return ['confirmar', 'подтвердить', 'confirm'].includes(value.trim().toLowerCase()); }
+export function parseReportReason(value: string) {
+  const key = value.trim().toLowerCase();
+  if (['perfil', 'profile', 'профиль'].includes(key)) return 'profile_mismatch';
+  if (['respuesta', 'response', 'ответ'].includes(key)) return 'no_response';
+  if (['spam', 'спам'].includes(key)) return 'spam';
+  if (['seguridad', 'safety', 'безопасность'].includes(key)) return 'safety';
+  if (['otro', 'other', 'другое'].includes(key)) return 'other';
+  return null;
+}

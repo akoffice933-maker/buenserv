@@ -2,7 +2,7 @@ import {timingSafeEqual} from 'node:crypto';
 import {NextRequest, NextResponse} from 'next/server';
 import {createAdminClient} from '@/lib/supabase/admin';
 import {getServerEnv} from '@/lib/env';
-import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, sendTelegramMessage, type BotLocale, type OnboardingStep} from '@/lib/telegram/provider-onboarding';
+import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, parseReportReason, sendTelegramMessage, type BotLocale, type OnboardingStep} from '@/lib/telegram/provider-onboarding';
 
 type TelegramUpdate = {update_id: number; message?: {text?: string; photo?: Array<{file_id: string}>; chat?: {id: number}; from?: {id: number; first_name?: string; last_name?: string; language_code?: string}}};
 type Draft = {category_slug?: string; barrio_slug?: string; description?: string; price_from_ars?: number; telegram_photo_file_id?: string};
@@ -10,6 +10,7 @@ type Draft = {category_slug?: string; barrio_slug?: string; description?: string
 function normalizeLocale(language?: string): BotLocale { if (language?.startsWith('ru')) return 'ru'; if (language?.startsWith('en')) return 'en'; return 'es-AR'; }
 function secretsMatch(received: string | null, expected: string) { if (!received) return false; const left = Buffer.from(received); const right = Buffer.from(expected); return left.length === right.length && timingSafeEqual(left, right); }
 function startsProviderOnboarding(text?: string) { return /^\/(start\s+provider|provider)\b/i.test(text?.trim() ?? ''); }
+function reportProviderId(text?: string) { const match = text?.trim().match(/^\/start\s+report_([0-9a-f-]{36})$/i); return match?.[1] ?? null; }
 
 async function submitProvider(supabase: ReturnType<typeof createAdminClient>, profileId: string, telegramId: number, name: string, draft: Draft) {
   if (!draft.category_slug || !draft.barrio_slug || !draft.description || !draft.price_from_ars || !draft.telegram_photo_file_id) throw new Error('Incomplete onboarding draft');
@@ -46,11 +47,39 @@ export async function POST(request: NextRequest) {
   const {data: profile, error: profileError} = await supabase.from('profiles').upsert({telegram_user_id: user.id, display_name: displayName, locale}, {onConflict: 'telegram_user_id'}).select('id').single();
   if (profileError || !profile) return NextResponse.json({error: 'Temporary error'}, {status: 500});
 
+  const reportTargetId = reportProviderId(message.text);
+  if (reportTargetId) {
+    const {data: target} = await supabase.from('providers').select('id').eq('id', reportTargetId).eq('status', 'approved').maybeSingle();
+    if (!target) { await markProcessed(); return NextResponse.json({ok: true}); }
+    await supabase.from('telegram_report_sessions').upsert({profile_id: profile.id, provider_id: target.id, step: 'reason'}, {onConflict: 'profile_id'});
+    await sendTelegramMessage(env, chatId, onboardingText(locale, 'reportReason'));
+    await markProcessed();
+    return NextResponse.json({ok: true});
+  }
+
   if (startsProviderOnboarding(message.text)) {
     await supabase.from('provider_onboarding_sessions').upsert({profile_id: profile.id, step: 'category', draft: {}}, {onConflict: 'profile_id'});
     await sendTelegramMessage(env, chatId, `${onboardingText(locale, 'welcome')}\n\n${onboardingText(locale, 'category')}`);
     await markProcessed();
     return NextResponse.json({ok: true});
+  }
+
+  const {data: reportSession} = await supabase.from('telegram_report_sessions').select('provider_id,step,reason').eq('profile_id', profile.id).maybeSingle();
+  if (reportSession) {
+    if (reportSession.step === 'reason') {
+      const reason = parseReportReason(message.text ?? '');
+      if (!reason) { await sendTelegramMessage(env, chatId, onboardingText(locale, 'reportReason')); await markProcessed(); return NextResponse.json({ok: true}); }
+      await supabase.from('telegram_report_sessions').update({step: 'details', reason, updated_at: new Date().toISOString()}).eq('profile_id', profile.id);
+      await sendTelegramMessage(env, chatId, onboardingText(locale, 'reportDetails'));
+      await markProcessed(); return NextResponse.json({ok: true});
+    }
+    const details = message.text?.trim() ?? '';
+    if (details.length < 10 || details.length > 2000) { await sendTelegramMessage(env, chatId, onboardingText(locale, 'reportDetails')); await markProcessed(); return NextResponse.json({ok: true}); }
+    const {error: reportError} = await supabase.from('reports').insert({provider_id: reportSession.provider_id, reporter_profile_id: profile.id, reason: reportSession.reason, details, status: 'open'});
+    if (reportError) return NextResponse.json({error: 'Report submission failed'}, {status: 500});
+    await supabase.from('telegram_report_sessions').delete().eq('profile_id', profile.id);
+    await sendTelegramMessage(env, chatId, onboardingText(locale, 'reportSubmitted'));
+    await markProcessed(); return NextResponse.json({ok: true});
   }
 
   const {data: session} = await supabase.from('provider_onboarding_sessions').select('step,draft').eq('profile_id', profile.id).maybeSingle();

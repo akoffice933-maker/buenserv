@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory} from './provider-onboarding';
+import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, parseReportReason} from './provider-onboarding';
 
 describe('provider onboarding utilities', () => {
   it('parses ARS prices without accepting invalid values', () => {
@@ -14,6 +14,7 @@ describe('provider onboarding utilities', () => {
     expect(parseCategory('Cleaning')).toBe('limpieza');
     expect(parseBarrio('Палермо')).toBe('palermo');
     expect(isConfirmation('ПОДТВЕРДИТЬ')).toBe(true);
+    expect(parseReportReason('безопасность')).toBe('safety');
   });
 
   it('has onboarding copy for each supported locale', () => {
