@@ -65,3 +65,15 @@ Before enabling the first moderated provider profile:
 - add integration tests using a seeded Supabase staging project.
 
 This protects against silent cardinality regressions in embedded relation handling.
+
+## Public report boundary — before launch
+
+Web profile reports are intentionally anonymous in the current MVP because public customers do not yet have a Supabase Auth identity. They are rate-limited server-side to **3 reports per hashed network key per hour** and must never auto-suspend a provider.
+
+Before production launch:
+
+- add a Telegram-first authenticated reporting path that records `reporter_profile_id`;
+- preserve anonymous web reports only as lower-confidence signals;
+- add moderator queue filters for repeated reports and reason categories;
+- add Vercel/edge rate limiting when deployment infrastructure is configured;
+- never surface reporter identity to the reported provider.

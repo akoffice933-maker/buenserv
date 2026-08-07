@@ -19,6 +19,7 @@ const serverSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().min(1),
   TELEGRAM_WEBHOOK_SECRET: z.string().min(24),
   TELEGRAM_BOT_USERNAME: z.string().min(1),
+  REPORT_RATE_LIMIT_SALT: z.string().min(32),
   NEXT_PUBLIC_APP_URL: z.string().url()
 });
 
@@ -32,6 +33,7 @@ export function getServerEnv(): ServerEnv {
     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
     TELEGRAM_WEBHOOK_SECRET: process.env.TELEGRAM_WEBHOOK_SECRET,
     TELEGRAM_BOT_USERNAME: process.env.TELEGRAM_BOT_USERNAME,
+    REPORT_RATE_LIMIT_SALT: process.env.REPORT_RATE_LIMIT_SALT,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL
   });
 }
