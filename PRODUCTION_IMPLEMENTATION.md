@@ -168,3 +168,7 @@ Deployment must not be considered production-ready until this workflow is green 
 ### Suspension semantics
 
 `approved`, `rejected` and `suspended` have separate provider notification copy. `rejected` and `suspended` require a moderation reason at the API validation layer. The current dashboard exposes approve/reject only; suspension UI will be added separately with an explicit removal-oriented confirmation flow rather than reusing rejection wording.
+
+### Production URL requirement
+
+`NEXT_PUBLIC_APP_URL` must be set to the owned canonical HTTPS domain in Vercel before the first production deployment. It drives canonical URLs, `hreflang`, `robots.txt` sitemap location and `sitemap.xml`. The `https://buenserv.com` value in source is a development fallback only and must not be relied on for a live deployment.
