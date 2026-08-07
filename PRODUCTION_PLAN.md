@@ -334,3 +334,130 @@ B2B / relocation partnerships
 10. Измерять подтверждённый outcome, а не только клики.
 
 > Главный риск BuenServ — marketplace liquidity. В первые месяцы приоритетом должны быть плотность предложения, качество профилей, скорость ответа и доверие, а не агрессивная монетизация.
+
+---
+
+## 15. Уточнение оценок и delivery-модели
+
+Оценки из roadmap предполагают небольшую кросс-функциональную команду. Для solo-разработчика нужно применять коэффициент **×1.5–2** с учётом дизайна, тестирования, поддержки, локализации, legal coordination и операционной работы с supply.
+
+| Блок | Команда / параллельная работа | Solo-разработка |
+|---|---:|---:|
+| Sprint 1 — стабилизация static prototype | 3–5 дней | 4–8 дней |
+| Sprint 2 — Next.js / component migration | 1–2 недели | 2–4 недели |
+| Sprint 3 — полноценный i18n | 1 неделя | 1–2 недели |
+| Sprint 4 — backend MVP | 2–4 недели | 5–8 недель |
+| Sprint 5 — quality gate / soft launch prep | 1–2 недели | 2–3 недели |
+
+### Реалистичный solo timeline
+
+```text
+Static stabilization: 1–2 недели
+Production frontend + i18n: 3–6 недель
+Backend + Telegram bot MVP: 5–8 недель
+QA, legal, soft launch: 2–4 недели
+Итого до качественного soft launch: примерно 3–5 месяцев
+```
+
+---
+
+## 16. Backend MVP: декомпозиция
+
+Backend — отдельный workstream, а не один пункт спринта.
+
+### 16.1. Foundation
+
+- PostgreSQL, migrations, backup policy;
+- environment separation: local / staging / production;
+- structured logging, error monitoring, rate limits;
+- RBAC roles: admin, moderator, support;
+- audit-log foundation.
+
+### 16.2. Provider directory
+
+- category CRUD;
+- barrio CRUD;
+- provider profile CRUD;
+- photo upload pipeline;
+- profile status: draft / pending / approved / suspended;
+- public SEO-safe read API;
+- moderation actions and reason codes.
+
+### 16.3. Telegram integration
+
+- webhook validation;
+- Telegram user identity mapping;
+- customer search flow;
+- provider onboarding flow;
+- deep-link attribution;
+- notification preferences and frequency caps;
+- abuse/rate limiting.
+
+### 16.4. Marketplace quality
+
+- review eligibility and review CRUD;
+- report / complaint flow;
+- response-time tracking;
+- provider quality score;
+- moderation queue;
+- immutable audit events.
+
+### 16.5. Billing-adjacent boundary
+
+На MVP backend не принимает оплату между клиентом и исполнителем.
+
+Допустимая зона:
+
+- billing only for BuenServ products: Pro, Featured, qualified lead packs, B2B;
+- ARS prices and invoice references;
+- payment provider webhooks;
+- idempotent order / subscription / credits ledger.
+
+Недопустимая зона без отдельного legal/compliance проекта:
+
+- escrow;
+- split payments;
+- custody;
+- currency exchange;
+- crypto wallets / public wallet details;
+- settlement of customer-to-provider service payments.
+
+---
+
+## 17. Performance budget: до начала Next.js migration
+
+Performance — архитектурное ограничение, а не post-launch проверка.
+
+### Mobile budget
+
+| Ресурс | Budget |
+|---|---:|
+| Initial JS, gzip/brotli | ≤ 170 KB target, ≤ 220 KB hard ceiling |
+| Route-specific JS, gzip/brotli | ≤ 60 KB target |
+| CSS critical path | ≤ 35 KB gzip/brotli |
+| Hero image | ≤ 180 KB AVIF / ≤ 250 KB WebP fallback |
+| Карточка изображения | ≤ 80 KB WebP/AVIF |
+| Lottie per route | ≤ 80 KB, lazy-loaded |
+| Third-party scripts initial route | 0 preferred, ≤ 2 strictly necessary |
+| Fonts | 1 family / 2 weights initial, `font-display: swap` |
+
+### Delivery rules
+
+- `next/image`, AVIF/WebP, responsive sizes and explicit dimensions;
+- no PNG/JPEG photography in the initial loading path when modern formats are available;
+- lazy-load all below-the-fold images, Lottie and charts;
+- Motion only inside interactive client islands;
+- do not load Anime.js, Motion, Lottie and GSAP on the same route by default;
+- import shadcn components selectively; do not add a broad client-side UI barrel;
+- keep catalogue/listing pages predominantly server-rendered;
+- use dynamic imports for admin charts, filters and modals;
+- measure bundle changes in CI.
+
+### Quality gates
+
+- Lighthouse mobile performance target: **≥85** for public landing and catalogue;
+- LCP target: **≤2.5 s** on mid-tier mobile / simulated 4G;
+- CLS: **≤0.1**;
+- INP: **≤200 ms**;
+- automatic bundle-size regression check on pull requests.
+
