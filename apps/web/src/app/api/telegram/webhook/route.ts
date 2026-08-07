@@ -11,6 +11,7 @@ function normalizeLocale(language?: string): BotLocale { if (language?.startsWit
 function secretsMatch(received: string | null, expected: string) { if (!received) return false; const left = Buffer.from(received); const right = Buffer.from(expected); return left.length === right.length && timingSafeEqual(left, right); }
 function startsProviderOnboarding(text?: string) { return /^\/(start\s+provider|provider)\b/i.test(text?.trim() ?? ''); }
 function reportProviderId(text?: string) { const match = text?.trim().match(/^\/start\s+report_([0-9a-f-]{36})$/i); return match?.[1] ?? null; }
+function startsSupport(text?: string) { return /^\/start\s+support$/i.test(text?.trim() ?? ''); }
 
 async function submitProvider(supabase: ReturnType<typeof createAdminClient>, profileId: string, telegramId: number, name: string, draft: Draft) {
   if (!draft.category_slug || !draft.barrio_slug || !draft.description || !draft.price_from_ars || !draft.telegram_photo_file_id) throw new Error('Incomplete onboarding draft');
@@ -46,6 +47,12 @@ export async function POST(request: NextRequest) {
   const locale = normalizeLocale(user.language_code); const displayName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'BuenServ user';
   const {data: profile, error: profileError} = await supabase.from('profiles').upsert({telegram_user_id: user.id, display_name: displayName, locale}, {onConflict: 'telegram_user_id'}).select('id').single();
   if (profileError || !profile) return NextResponse.json({error: 'Temporary error'}, {status: 500});
+
+  if (startsSupport(message.text)) {
+    await sendTelegramMessage(env, chatId, onboardingText(locale, 'support'));
+    await markProcessed();
+    return NextResponse.json({ok: true});
+  }
 
   const reportTargetId = reportProviderId(message.text);
   if (reportTargetId) {
