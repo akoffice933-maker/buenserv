@@ -3,7 +3,7 @@ import type {ServerEnv} from '@/lib/env';
 export type BotLocale = 'es-AR' | 'ru' | 'en';
 export type OnboardingStep = 'category' | 'barrio' | 'description' | 'price' | 'photo' | 'confirm';
 
-const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 'invalidPrice', string>> = {
+const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 'submissionFailed' | 'invalidPrice', string>> = {
   'es-AR': {
     welcome: '¡Bien! Vamos a crear tu perfil profesional en BuenServ.',
     category: '¿Qué servicio ofrecés? Respondé con una categoría.',
@@ -13,6 +13,7 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     photo: 'Enviá una foto clara para tu perfil profesional.',
     confirm: 'Revisá los datos. Escribí CONFIRMAR para enviarlo a moderación.',
     submitted: '¡Listo! Tu perfil fue enviado a moderación. Te avisaremos por este chat.',
+    submissionFailed: 'No pudimos enviar el perfil ahora. Esperá un momento y escribí CONFIRMAR otra vez.',
     invalidPrice: 'Ingresá solo un número válido en ARS, sin símbolos.'
   },
   ru: {
@@ -24,6 +25,7 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     photo: 'Отправьте чёткую фотографию для профессионального профиля.',
     confirm: 'Проверьте данные. Напишите ПОДТВЕРДИТЬ, чтобы отправить профиль на модерацию.',
     submitted: 'Готово! Профиль отправлен на модерацию. Мы напишем вам в этом чате.',
+    submissionFailed: 'Сейчас не удалось отправить профиль. Подождите немного и снова напишите ПОДТВЕРДИТЬ.',
     invalidPrice: 'Укажите корректную цену в ARS только цифрами, без символов.'
   },
   en: {
@@ -35,6 +37,7 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     photo: 'Send a clear photo for your professional profile.',
     confirm: 'Review your details. Type CONFIRM to send your profile for moderation.',
     submitted: 'Done! Your profile was sent for moderation. We will message you here.',
+    submissionFailed: 'We could not submit your profile right now. Please wait a moment and type CONFIRM again.',
     invalidPrice: 'Enter a valid ARS price using numbers only, without symbols.'
   }
 };
@@ -56,6 +59,8 @@ export function parseArsPrice(value: string) {
   return Number.isFinite(price) && price > 0 && price <= 100_000_000 ? Math.round(price) : null;
 }
 
+// TODO(directory-sync): replace aliases with database-managed category labels once CMS is live.
+// Canonical slug validation still happens inside the atomic submit_provider RPC.
 const categoryInputs: Record<string, string> = {
   limpieza: 'limpieza', cleaning: 'limpieza', 'уборка': 'limpieza',
   reparaciones: 'reparaciones', repairs: 'reparaciones', ремонт: 'reparaciones', electricista: 'reparaciones', электрик: 'reparaciones',
