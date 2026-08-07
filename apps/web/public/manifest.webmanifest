@@ -1,0 +1,15 @@
+{
+  "name": "BuenServ — Servicios en Buenos Aires",
+  "short_name": "BuenServ",
+  "description": "Encontrá servicios locales de confianza en Buenos Aires.",
+  "lang": "es-AR",
+  "start_url": "/es",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FAF9F6",
+  "theme_color": "#0FA37F",
+  "icons": [
+    {"src":"/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
+    {"src":"/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ]
+}
