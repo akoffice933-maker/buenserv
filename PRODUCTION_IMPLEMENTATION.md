@@ -147,3 +147,20 @@ where telegram_user_id = <internal_admin_telegram_id>;
 Use the UUID from Supabase **Authentication → Users** after the magic-link login. Until this mapping exists, a successful login correctly returns `403` from RBAC because the user has no internal role.
 
 Never assign `admin` from a public client route. Future admin invitation tooling must execute this mapping server-side and create an audit event.
+
+---
+
+## Continuous integration
+
+GitHub Actions workflow `.github/workflows/ci.yml` is the required web quality gate on pull requests and `main` changes affecting `apps/web` or Supabase migrations.
+
+```text
+npm ci
+→ npm run test
+→ npm run lint
+→ npm run typecheck
+→ npm run build
+→ npm run check:bundle
+```
+
+Deployment must not be considered production-ready until this workflow is green against the exact lockfile used by the deployment.
