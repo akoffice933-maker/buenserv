@@ -122,3 +122,14 @@ On confirmation, the webhook creates/updates a pending `providers` record and it
 ### Moderation boundary
 
 The database now has a real pending-provider source for a moderation queue. The moderator-facing queue, approval/rejection actions, photo transfer to private Supabase Storage and notification workflow remain the next implementation task. Do not describe the admin moderation UI as complete until those routes and RBAC controls exist.
+
+### Moderation API status
+
+The moderator-facing UI is still pending, but protected server endpoints now exist:
+
+```text
+GET   /api/admin/moderation  → pending providers
+PATCH /api/admin/moderation  → approve / reject / suspend
+```
+
+Both require a Supabase Auth user mapped to `profiles.auth_user_id` with `admin` or `moderator` role. `support` can read the queue but cannot change a moderation decision. Decisions are committed through `moderate_provider(...)` and create audit events atomically with the status update.
