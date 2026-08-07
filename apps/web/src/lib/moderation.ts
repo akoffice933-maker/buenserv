@@ -3,7 +3,7 @@ import type {DirectoryBarrio, DirectoryCategory} from '@/lib/directory';
 export type ModerationProvider = {
   id: string;
   slug: string;
-  status: 'pending';
+  status: 'pending' | 'approved' | 'rejected' | 'suspended';
   bio: string | null;
   onboardingPayload: Record<string, unknown>;
   createdAt: string;
