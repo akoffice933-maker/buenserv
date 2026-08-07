@@ -3,10 +3,13 @@ import {getTranslations} from 'next-intl/server';
 import {SiteHeader} from '@/components/site-header';
 import {ProviderDirectory} from '@/components/provider-directory';
 import {CATEGORY_SLUGS, isCategorySlug} from '@/lib/categories';
+import {localizedMetadata} from '@/lib/seo';
 
 export function generateStaticParams() {
   return ['es', 'ru', 'en'].flatMap(locale => CATEGORY_SLUGS.map(slug => ({locale, slug})));
 }
+
+export async function generateMetadata({params}: {params: Promise<{locale: string; slug: string}>}) { const {locale, slug} = await params; const t = await getTranslations({locale, namespace: 'categories'}); const index = CATEGORY_SLUGS.indexOf(slug as typeof CATEGORY_SLUGS[number]); const title = index >= 0 ? (t.raw('items') as string[])[index] : t('title'); return localizedMetadata(locale, `categories/${slug}`, `${title} · Buenos Aires`, t('description')); }
 
 export default async function CategoryDetailPage({params}: {params: Promise<{locale: string; slug: string}>}) {
   const {locale, slug} = await params;

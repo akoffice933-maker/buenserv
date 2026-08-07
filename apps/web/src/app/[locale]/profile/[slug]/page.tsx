@@ -2,8 +2,11 @@ import {getTranslations} from 'next-intl/server';
 import {SiteHeader} from '@/components/site-header';
 import {ProviderProfile} from '@/components/provider-profile';
 import {getTelegramBotUsername} from '@/lib/telegram/deep-link';
+import {localizedMetadata} from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({params}: {params: Promise<{locale: string; slug: string}>}) { const {locale, slug} = await params; const t = await getTranslations({locale, namespace: 'profile'}); return localizedMetadata(locale, `profile/${slug}`, t('seoTitle'), t('seoDescription')); }
 
 export default async function ProviderPage({params}: {params: Promise<{locale: string; slug: string}>}) {
   const {locale, slug} = await params;

@@ -1,5 +1,8 @@
 import {getTranslations} from 'next-intl/server';
 import {SiteHeader} from '@/components/site-header';
+import {localizedMetadata} from '@/lib/seo';
+
+export async function generateMetadata({params}: {params: Promise<{locale: string}>}) { const {locale} = await params; const t = await getTranslations({locale, namespace: 'faq'}); return localizedMetadata(locale, 'faq', t('title'), t('title')); }
 
 export default async function FaqPage({params}: {params: Promise<{locale: string}>}) {
   const {locale} = await params; const t = await getTranslations('faq'); const items = t.raw('items') as Array<{q: string; a: string}>;
