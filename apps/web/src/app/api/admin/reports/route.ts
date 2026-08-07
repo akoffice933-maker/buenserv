@@ -2,6 +2,7 @@ import {NextRequest, NextResponse} from 'next/server';
 import {z} from 'zod';
 import {requireAdminActor, isResponse} from '@/lib/admin-auth';
 import {createAdminClient} from '@/lib/supabase/admin';
+import {normalizeReportRows} from '@/lib/reporting';
 
 export const dynamic = 'force-dynamic';
 const updateSchema = z.object({reportId: z.string().uuid(), status: z.enum(['reviewing', 'resolved', 'dismissed']), note: z.string().max(1000).optional()});
@@ -11,7 +12,7 @@ export async function GET() {
   if (isResponse(actor)) return actor;
   const {data, error} = await createAdminClient().from('reports').select('id,reason,details,status,created_at,providers(slug,profiles(display_name)),profiles!reports_reporter_profile_id_fkey(display_name,telegram_user_id)').in('status', ['open', 'reviewing']).order('created_at');
   if (error) return NextResponse.json({error: 'Reports unavailable'}, {status: 503});
-  return NextResponse.json({reports: data ?? []});
+  return NextResponse.json({reports: normalizeReportRows(data ?? [])});
 }
 
 export async function PATCH(request: NextRequest) {
