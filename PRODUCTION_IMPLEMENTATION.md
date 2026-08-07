@@ -196,3 +196,19 @@ billing_events
 ```
 
 The billing/trial service must be server-side, auditable and legally reviewed before any provider can reach a paid transition.
+
+### Legal publication gate
+
+Current Terms, Privacy and Cookies pages are localization and UX drafts only. They are marked `noindex, nofollow`, display a legal-review notice, and are excluded from the sitemap.
+
+Before any public user, Telegram onboarding or production domain launch, Argentine counsel must approve documents that explicitly cover:
+
+- controller identity and data-contact channel;
+- Telegram identifiers, profile data, onboarding drafts, support/report content and admin email identity;
+- hashed network/rate-limit identifiers;
+- Supabase, Telegram and other processors plus cross-border transfers;
+- retention schedule;
+- access, rectification and deletion rights under applicable Argentine data-protection law;
+- lawful basis, consent and complaint procedure.
+
+Only then may legal pages be indexed and added back to the sitemap.

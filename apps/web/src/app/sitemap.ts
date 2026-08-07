@@ -3,7 +3,7 @@ import {CATEGORY_SLUGS} from '@/lib/categories';
 import {createPublicDirectoryClient} from '@/lib/supabase/public';
 
 const locales = ['es', 'ru', 'en'] as const;
-const publicPaths = ['', '/categories', '/faq', '/how-it-works', '/providers', '/pricing', '/safety', '/contact', '/legal/terms', '/legal/privacy', '/legal/cookies'];
+const publicPaths = ['', '/categories', '/faq', '/how-it-works', '/providers', '/pricing', '/safety', '/contact'];
 export const revalidate = 3600;
 
 function languageAlternates(base: string, path: string) {
