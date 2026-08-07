@@ -46,3 +46,22 @@ Before enabling uploads:
 - pinned lockfile in all deployments;
 - no `npm audit fix --force` in production branches;
 - Sentry alerts for image transformation/API failures.
+
+## Directory relation contract — before first provider onboarding
+
+The provider directory relies on Supabase embedded many-to-one relations:
+
+```text
+provider_categories.categories → object | null
+provider_barrios.barrios       → object | null
+```
+
+Before enabling the first moderated provider profile:
+
+- run `/api/providers` against at least one approved provider with a category and barrio;
+- verify category and barrio query filters return the profile;
+- verify localized barrio output in ES/RU/EN;
+- keep TypeScript relation shapes aligned with the Supabase select contract;
+- add integration tests using a seeded Supabase staging project.
+
+This protects against silent cardinality regressions in embedded relation handling.

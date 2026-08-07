@@ -4,6 +4,17 @@ import {createPublicDirectoryClient} from '@/lib/supabase/public';
 
 export const dynamic = 'force-dynamic';
 
+type ProviderRow = {
+  id: string;
+  slug: string;
+  photo_path: string | null;
+  rating: number;
+  reviews_count: number;
+  accepts_usdt: boolean;
+  provider_categories?: Array<{price_from_ars: number | null; categories?: {slug: string} | null}>;
+  provider_barrios?: Array<{barrios?: {slug: string; name_es: string; name_ru: string; name_en: string} | null}>;
+};
+
 const querySchema = z.object({
   category: z.string().regex(/^[a-z0-9-]+$/).max(80).optional(),
   barrio: z.string().regex(/^[a-z0-9-]+$/).max(80).optional(),
@@ -22,9 +33,10 @@ export async function GET(request: NextRequest) {
     const {data, error} = await query;
     if (error) return NextResponse.json({error: 'Directory unavailable'}, {status: 503});
 
-    const filtered = (data ?? []).filter(provider => {
-      const categoryOK = !parsed.data.category || provider.provider_categories?.some(item => item.categories?.some(category => category.slug === parsed.data.category));
-      const barrioOK = !parsed.data.barrio || provider.provider_barrios?.some(item => item.barrios?.some(barrio => barrio.slug === parsed.data.barrio));
+    const rows = (data ?? []) as unknown as ProviderRow[];
+    const filtered = rows.filter(provider => {
+      const categoryOK = !parsed.data.category || provider.provider_categories?.some(item => item.categories?.slug === parsed.data.category);
+      const barrioOK = !parsed.data.barrio || provider.provider_barrios?.some(item => item.barrios?.slug === parsed.data.barrio);
       return categoryOK && barrioOK;
     });
     return NextResponse.json({providers: filtered});

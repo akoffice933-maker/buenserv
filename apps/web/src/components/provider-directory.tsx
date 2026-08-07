@@ -10,8 +10,8 @@ type Provider = {
   rating: number;
   reviews_count: number;
   accepts_usdt: boolean;
-  provider_categories?: Array<{price_from_ars: number | null}>;
-  provider_barrios?: Array<{barrios?: Array<{name_es: string; name_ru: string; name_en: string}>}>;
+  provider_categories?: Array<{price_from_ars: number | null; categories?: {slug: string} | null}>;
+  provider_barrios?: Array<{barrios?: {slug: string; name_es: string; name_ru: string; name_en: string} | null}>;
 };
 
 type State = {status: 'loading'} | {status: 'ready'; providers: Provider[]} | {status: 'unavailable'};
@@ -38,7 +38,7 @@ export function ProviderDirectory({category, locale}: {category: string; locale:
   const currency = new Intl.NumberFormat(localeMap[locale] ?? 'es-AR', {style: 'currency', currency: 'ARS', maximumFractionDigits: 0});
   return <section aria-label={t('results')} className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{state.providers.map(provider => {
     const price = provider.provider_categories?.[0]?.price_from_ars;
-    const barrio = provider.provider_barrios?.[0]?.barrios?.[0];
+    const barrio = provider.provider_barrios?.[0]?.barrios;
     const barrioName = barrio?.[`name_${locale === 'es' ? 'es' : locale}` as keyof typeof barrio] ?? '';
     return <article key={provider.id} className="rounded-2xl border border-black/8 bg-white p-5 shadow-[0_8px_24px_rgba(23,53,42,.05)]"><div className="flex items-center gap-3"><div className="grid size-12 place-items-center rounded-full bg-bs-mint font-display text-lg font-extrabold text-bs-primary">{provider.slug.slice(0, 1).toUpperCase()}</div><div><h2 className="font-display text-xl font-extrabold">{provider.slug.replaceAll('-', ' ')}</h2><p className="text-xs text-bs-muted">{barrioName}</p></div></div><p className="mt-5 text-sm"><span className="text-[#B86D00]">★★★★★</span> <b>{provider.rating.toFixed(1)}</b> · {provider.reviews_count} {t('reviews')}</p><div className="mt-4 flex items-center justify-between border-t border-black/7 pt-4"><span className="font-extrabold">{price ? currency.format(price) : t('askPrice')}</span>{provider.accepts_usdt && <span className="rounded-full bg-bs-mint px-2 py-1 text-[11px] font-extrabold text-bs-primary-dark">USDT ✓</span>}</div></article>;
   })}</section>;
