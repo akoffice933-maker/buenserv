@@ -3,7 +3,7 @@ import type {ServerEnv} from '@/lib/env';
 export type BotLocale = 'es-AR' | 'ru' | 'en';
 export type OnboardingStep = 'category' | 'barrio' | 'description' | 'price' | 'photo' | 'confirm';
 
-const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 'submissionFailed' | 'invalidPrice' | 'approved' | 'rejected' | 'suspended' | 'reportReason' | 'reportDetails' | 'reportSubmitted', string>> = {
+const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 'submissionFailed' | 'invalidPrice' | 'approved' | 'rejected' | 'suspended' | 'reportReason' | 'reportDetails' | 'reportSubmitted' | 'reportRateLimited', string>> = {
   'es-AR': {
     welcome: '¡Bien! Vamos a crear tu perfil profesional en BuenServ.',
     category: '¿Qué servicio ofrecés? Respondé con una categoría.',
@@ -20,6 +20,7 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     reportReason: '¿Cuál es el motivo? Respondé: perfil, respuesta, spam, seguridad u otro.',
     reportDetails: 'Contanos qué pasó con un poco más de detalle.',
     reportSubmitted: 'Gracias. Recibimos tu reporte y lo revisaremos.',
+    reportRateLimited: 'Ya enviaste varios reportes recientemente. Probá de nuevo más tarde.',
     invalidPrice: 'Ingresá solo un número válido en ARS, sin símbolos.'
   },
   ru: {
@@ -38,6 +39,7 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     reportReason: 'Укажите причину: профиль, ответ, спам, безопасность или другое.',
     reportDetails: 'Расскажите подробнее, что произошло.',
     reportSubmitted: 'Спасибо. Мы получили жалобу и рассмотрим её.',
+    reportRateLimited: 'Вы уже недавно отправили несколько жалоб. Попробуйте позже.',
     invalidPrice: 'Укажите корректную цену в ARS только цифрами, без символов.'
   },
   en: {
@@ -56,6 +58,7 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     reportReason: 'What is the reason? Reply: profile, response, spam, safety or other.',
     reportDetails: 'Tell us what happened in a little more detail.',
     reportSubmitted: 'Thank you. We received your report and will review it.',
+    reportRateLimited: 'You have sent several reports recently. Please try again later.',
     invalidPrice: 'Enter a valid ARS price using numbers only, without symbols.'
   }
 };

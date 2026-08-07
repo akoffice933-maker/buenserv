@@ -10,11 +10,15 @@ describe('provider onboarding utilities', () => {
   });
 
   it('normalizes multilingual category, barrio and confirmation inputs', () => {
-    expect(parseCategory('Уборка')).toBe('limpieza');
-    expect(parseCategory('Cleaning')).toBe('limpieza');
-    expect(parseBarrio('Палермо')).toBe('palermo');
+    [['Уборка', 'limpieza'], ['Cleaning', 'limpieza'], ['Taxi', 'taxi-traslados']].forEach(([input, expected]) => expect(parseCategory(input)).toBe(expected));
+    [['Палермо', 'palermo'], ['Belgrano', 'belgrano'], ['Caballito', 'caballito']].forEach(([input, expected]) => expect(parseBarrio(input)).toBe(expected));
     expect(isConfirmation('ПОДТВЕРДИТЬ')).toBe(true);
-    expect(parseReportReason('безопасность')).toBe('safety');
+  });
+
+  it('maps each report reason across Spanish, Russian and English inputs', () => {
+    const cases = [['perfil', 'profile_mismatch'], ['profile', 'profile_mismatch'], ['профиль', 'profile_mismatch'], ['respuesta', 'no_response'], ['response', 'no_response'], ['ответ', 'no_response'], ['spam', 'spam'], ['спам', 'spam'], ['seguridad', 'safety'], ['safety', 'safety'], ['безопасность', 'safety'], ['otro', 'other'], ['other', 'other'], ['другое', 'other']];
+    cases.forEach(([input, expected]) => expect(parseReportReason(input)).toBe(expected));
+    expect(parseReportReason('unknown')).toBeNull();
   });
 
   it('has onboarding copy for each supported locale', () => {

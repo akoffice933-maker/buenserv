@@ -75,7 +75,12 @@ export async function POST(request: NextRequest) {
     }
     const details = message.text?.trim() ?? '';
     if (details.length < 10 || details.length > 2000) { await sendTelegramMessage(env, chatId, onboardingText(locale, 'reportDetails')); await markProcessed(); return NextResponse.json({ok: true}); }
-    const {error: reportError} = await supabase.from('reports').insert({provider_id: reportSession.provider_id, reporter_profile_id: profile.id, reason: reportSession.reason, details, status: 'open'});
+    const {error: reportError} = await supabase.rpc('submit_authenticated_report', {p_reporter_profile_id: profile.id, p_provider_id: reportSession.provider_id, p_reason: reportSession.reason, p_details: details});
+    if (reportError?.message.includes('report_rate_limited')) {
+      await supabase.from('telegram_report_sessions').delete().eq('profile_id', profile.id);
+      await sendTelegramMessage(env, chatId, onboardingText(locale, 'reportRateLimited'));
+      await markProcessed(); return NextResponse.json({ok: true});
+    }
     if (reportError) return NextResponse.json({error: 'Report submission failed'}, {status: 500});
     await supabase.from('telegram_report_sessions').delete().eq('profile_id', profile.id);
     await sendTelegramMessage(env, chatId, onboardingText(locale, 'reportSubmitted'));
