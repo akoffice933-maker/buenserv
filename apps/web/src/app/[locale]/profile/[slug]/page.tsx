@@ -3,10 +3,19 @@ import {SiteHeader} from '@/components/site-header';
 import {ProviderProfile} from '@/components/provider-profile';
 import {getTelegramBotUsername} from '@/lib/telegram/deep-link';
 import {localizedMetadata} from '@/lib/seo';
+import {getApprovedProviderBySlug} from '@/lib/provider-query';
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata({params}: {params: Promise<{locale: string; slug: string}>}) { const {locale, slug} = await params; const t = await getTranslations({locale, namespace: 'profile'}); return localizedMetadata(locale, `profile/${slug}`, t('seoTitle'), t('seoDescription')); }
+export async function generateMetadata({params}: {params: Promise<{locale: string; slug: string}>}) {
+  const {locale, slug} = await params; const t = await getTranslations({locale, namespace: 'profile'});
+  try {
+    const provider = await getApprovedProviderBySlug(slug);
+    const profile = Array.isArray(provider?.profiles) ? provider?.profiles[0] : provider?.profiles;
+    const title = profile?.display_name ?? t('seoTitle');
+    return localizedMetadata(locale, `profile/${slug}`, title, provider?.bio ?? t('seoDescription'));
+  } catch { return localizedMetadata(locale, `profile/${slug}`, t('seoTitle'), t('seoDescription')); }
+}
 
 export default async function ProviderPage({params}: {params: Promise<{locale: string; slug: string}>}) {
   const {locale, slug} = await params;
