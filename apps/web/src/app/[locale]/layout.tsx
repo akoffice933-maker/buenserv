@@ -5,6 +5,7 @@ import {hasLocale, NextIntlClientProvider} from 'next-intl';
 import {getMessages} from 'next-intl/server';
 import {notFound} from 'next/navigation';
 import {routing} from '@/i18n/routing';
+import {SiteFooter} from '@/components/site-footer';
 
 const inter = Inter({
   variable: '--font-body',
@@ -35,5 +36,5 @@ export default async function LocaleLayout({children, params}: Readonly<{childre
   const {locale} = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   const messages = await getMessages();
-  return <html lang={locale === 'es' ? 'es-AR' : locale} className={`${inter.variable} ${manrope.variable}`}><body>{children && <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>}</body></html>;
+  return <html lang={locale === 'es' ? 'es-AR' : locale} className={`${inter.variable} ${manrope.variable}`}><body><NextIntlClientProvider messages={messages}>{children}<SiteFooter locale={locale}/></NextIntlClientProvider></body></html>;
 }
