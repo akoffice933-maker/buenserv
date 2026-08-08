@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import {getTranslations} from 'next-intl/server';
 import {LocaleSwitcher} from '@/components/locale-switcher';
+import {MobileNav} from '@/components/mobile-nav';
 import {getTelegramDeepLink} from '@/lib/telegram/deep-link';
 
 export async function SiteHeader({locale}: {locale: string}) {
@@ -16,6 +17,7 @@ export async function SiteHeader({locale}: {locale: string}) {
       </nav>
       <div className="flex items-center gap-2">
         <LocaleSwitcher locale={locale} label={t('language')}/>
+        <MobileNav locale={locale} telegramHref={getTelegramDeepLink()} labels={{how: t('how'), categories: t('categories'), providers: t('providers'), faq: 'FAQ', telegram: t('telegram')}}/>
         <a href={getTelegramDeepLink()} className="hidden rounded-lg bg-bs-primary px-3 py-2 text-xs font-extrabold text-white no-underline hover:bg-bs-primary-dark sm:block">{t('telegram')} ↗</a>
       </div>
     </div>
