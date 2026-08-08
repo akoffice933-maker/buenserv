@@ -116,3 +116,9 @@ Strict-Transport-Security: max-age=63072000; includeSubDomains
 A strict Content-Security-Policy should be added after the Vercel deployment, external asset origins and Supabase/Telegram domains are finalized. Do not ship an untested CSP that breaks Next.js hydration or authenticated flows.
 
 `preload` is intentionally not included in HSTS until the canonical domain and every subdomain are confirmed HTTPS-only; preload submission is difficult to reverse.
+
+## Security-definer RPC boundary
+
+Migration `018_restrict_security_definer_rpc.sql` revokes `EXECUTE` from `public`, `anon` and `authenticated` for all security-definer workflow functions and grants execution only to `service_role`.
+
+This migration is mandatory before any public deployment. The web API and Telegram webhook use server-side service-role clients, so functionality remains intact while direct PostgREST/RPC invocation by an anonymous caller is denied.
