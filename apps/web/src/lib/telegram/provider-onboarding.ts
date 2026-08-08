@@ -3,7 +3,7 @@ import type {ServerEnv} from '@/lib/env';
 export type BotLocale = 'es-AR' | 'ru' | 'en';
 export type OnboardingStep = 'category' | 'barrio' | 'description' | 'price' | 'photo' | 'confirm';
 
-const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 'submissionFailed' | 'invalidPrice' | 'approved' | 'rejected' | 'suspended' | 'reportReason' | 'reportDetails' | 'reportSubmitted' | 'reportRateLimited' | 'support' | 'supportSubmitted', string>> = {
+const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 'submissionFailed' | 'invalidPrice' | 'approved' | 'rejected' | 'suspended' | 'reportReason' | 'reportDetails' | 'reportSubmitted' | 'reportRateLimited' | 'support' | 'supportSubmitted' | 'supportFailed' | 'supportRateLimited', string>> = {
   'es-AR': {
     welcome: '¡Bien! Vamos a crear tu perfil profesional en BuenServ.',
     category: '¿Qué servicio ofrecés? Respondé con una categoría.',
@@ -23,6 +23,8 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     reportRateLimited: 'Ya enviaste varios reportes recientemente. Probá de nuevo más tarde.',
     support: 'Hola. Contanos cómo podemos ayudarte con un poco de detalle.',
     supportSubmitted: 'Gracias. Recibimos tu consulta y el equipo de BuenServ la revisará.',
+    supportFailed: 'No pudimos enviar tu consulta ahora. Esperá un momento y escribí tu mensaje otra vez.',
+    supportRateLimited: 'Ya enviaste varias consultas recientemente. Probá de nuevo más tarde.',
     invalidPrice: 'Ingresá solo un número válido en ARS, sin símbolos.'
   },
   ru: {
@@ -44,6 +46,8 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     reportRateLimited: 'Вы уже недавно отправили несколько жалоб. Попробуйте позже.',
     support: 'Здравствуйте. Расскажите подробнее, как мы можем помочь.',
     supportSubmitted: 'Спасибо. Мы получили обращение, и команда BuenServ его рассмотрит.',
+    supportFailed: 'Сейчас не удалось отправить обращение. Подождите немного и снова напишите сообщение.',
+    supportRateLimited: 'Вы уже недавно отправили несколько обращений. Попробуйте позже.',
     invalidPrice: 'Укажите корректную цену в ARS только цифрами, без символов.'
   },
   en: {
@@ -65,6 +69,8 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     reportRateLimited: 'You have sent several reports recently. Please try again later.',
     support: 'Hello. Tell us how we can help in a little more detail.',
     supportSubmitted: 'Thank you. We received your request and the BuenServ team will review it.',
+    supportFailed: 'We could not send your request right now. Please wait a moment and send your message again.',
+    supportRateLimited: 'You have sent several support requests recently. Please try again later.',
     invalidPrice: 'Enter a valid ARS price using numbers only, without symbols.'
   }
 };

@@ -1,3 +1,5 @@
+import {one} from '@/lib/relations';
+
 export type ModerationReport = {
   id: string;
   reason: string;
@@ -10,10 +12,6 @@ export type ModerationReport = {
 
 type PersonRow = {display_name?: string | null; telegram_user_id?: number | null};
 type ProviderRow = {slug?: string; profiles?: PersonRow | PersonRow[] | null};
-
-function one<T>(value: T | T[] | null | undefined): T | null {
-  return Array.isArray(value) ? value[0] ?? null : value ?? null;
-}
 
 export function normalizeReportRows(rows: unknown[]): ModerationReport[] {
   return rows.map((row: any) => {

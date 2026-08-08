@@ -76,8 +76,16 @@ export async function POST(request: NextRequest) {
   if (supportSession) {
     const details = message.text?.trim() ?? '';
     if (details.length < 10 || details.length > 2000) { await sendTelegramMessage(env, chatId, onboardingText(locale, 'support')); await markProcessed(); return NextResponse.json({ok: true}); }
-    const {error: supportError} = await supabase.from('support_requests').insert({profile_id: profile.id, details, status: 'open'});
-    if (supportError) return NextResponse.json({error: 'Support submission failed'}, {status: 500});
+    const {error: supportError} = await supabase.rpc('submit_support_request', {p_profile_id: profile.id, p_details: details});
+    if (supportError?.message.includes('support_rate_limited')) {
+      await supabase.from('telegram_support_sessions').delete().eq('profile_id', profile.id);
+      await sendTelegramMessage(env, chatId, onboardingText(locale, 'reportRateLimited'));
+      await markProcessed(); return NextResponse.json({ok: true});
+    }
+    if (supportError) {
+      try { await sendTelegramMessage(env, chatId, onboardingText(locale, 'supportFailed')); } catch {}
+      return NextResponse.json({error: 'Support submission failed'}, {status: 500});
+    }
     await supabase.from('telegram_support_sessions').delete().eq('profile_id', profile.id);
     await sendTelegramMessage(env, chatId, onboardingText(locale, 'supportSubmitted'));
     await markProcessed(); return NextResponse.json({ok: true});
@@ -97,7 +105,7 @@ export async function POST(request: NextRequest) {
     const {error: reportError} = await supabase.rpc('submit_authenticated_report', {p_reporter_profile_id: profile.id, p_provider_id: reportSession.provider_id, p_reason: reportSession.reason, p_details: details});
     if (reportError?.message.includes('report_rate_limited')) {
       await supabase.from('telegram_report_sessions').delete().eq('profile_id', profile.id);
-      await sendTelegramMessage(env, chatId, onboardingText(locale, 'reportRateLimited'));
+      await sendTelegramMessage(env, chatId, onboardingText(locale, 'supportRateLimited'));
       await markProcessed(); return NextResponse.json({ok: true});
     }
     if (reportError) return NextResponse.json({error: 'Report submission failed'}, {status: 500});

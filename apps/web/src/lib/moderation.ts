@@ -1,4 +1,5 @@
 import type {DirectoryBarrio, DirectoryCategory} from '@/lib/directory';
+import {one} from '@/lib/relations';
 
 export type ModerationProvider = {
   id: string;
@@ -20,8 +21,8 @@ export function normalizeModerationProviders(rows: unknown[]): ModerationProvide
     bio: row.bio,
     onboardingPayload: row.onboarding_payload ?? {},
     createdAt: row.created_at,
-    applicant: Array.isArray(row.profiles) ? row.profiles[0] ? {displayName: row.profiles[0].display_name, telegramUserId: row.profiles[0].telegram_user_id} : null : row.profiles ? {displayName: row.profiles.display_name, telegramUserId: row.profiles.telegram_user_id} : null,
-    categories: (row.provider_categories ?? []).map((item: any) => ({priceFromArs: item.price_from_ars, category: Array.isArray(item.categories) ? item.categories[0] ?? null : item.categories ?? null})),
-    barrios: (row.provider_barrios ?? []).map((item: any) => ({barrio: Array.isArray(item.barrios) ? item.barrios[0] ?? null : item.barrios ?? null}))
+    applicant: one(row.profiles) ? {displayName: one(row.profiles)?.display_name, telegramUserId: one(row.profiles)?.telegram_user_id} : null,
+    categories: (row.provider_categories ?? []).map((item: any) => ({priceFromArs: item.price_from_ars, category: one(item.categories)})),
+    barrios: (row.provider_barrios ?? []).map((item: any) => ({barrio: one(item.barrios)}))
   }));
 }
