@@ -100,3 +100,16 @@ Before any Telegram file is copied into this bucket, implement a server-only ima
 4. generates controlled WebP/AVIF variants;
 5. records `provider_photos.status = pending`;
 6. exposes a public variant only after moderator approval.
+
+## HTTP security headers
+
+Production Next.js applies baseline headers for all routes:
+
+```text
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+```
+
+A strict Content-Security-Policy should be added after the Vercel deployment, external asset origins and Supabase/Telegram domains are finalized. Do not ship an untested CSP that breaks Next.js hydration or authenticated flows.
