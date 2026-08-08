@@ -12,7 +12,7 @@ export async function generateMetadata({params}: {params: Promise<{locale: strin
   const {locale, slug} = await params; const t = await getTranslations({locale, namespace: 'profile'});
   try {
     const provider = await getApprovedProviderBySlug(slug);
-    const profile = Array.isArray(provider?.profiles) ? provider?.profiles[0] : provider?.profiles;
+    const profile = one(provider?.profiles);
     const title = profile?.display_name ?? t('seoTitle');
     return localizedMetadata(locale, `profile/${slug}`, title, provider?.bio ?? t('seoDescription'));
   } catch { return localizedMetadata(locale, `profile/${slug}`, t('seoTitle'), t('seoDescription')); }

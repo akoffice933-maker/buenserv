@@ -1,6 +1,7 @@
 import './globals.css';
 import type {Metadata} from 'next';
 import {Inter, Manrope} from 'next/font/google';
+import {getLocale} from 'next-intl/server';
 
 const inter = Inter({variable: '--font-body', subsets: ['latin', 'cyrillic'], display: 'swap'});
 const manrope = Manrope({variable: '--font-display', subsets: ['latin', 'cyrillic'], display: 'swap'});
@@ -15,6 +16,7 @@ export const metadata: Metadata = {
   appleWebApp: {capable: true, title: 'BuenServ', statusBarStyle: 'default'}
 };
 
-export default function RootLayout({children}: Readonly<{children: React.ReactNode}>) {
-  return <html lang="es-AR" className={`${inter.variable} ${manrope.variable}`}><body>{children}</body></html>;
+export default async function RootLayout({children}: Readonly<{children: React.ReactNode}>) {
+  const locale = await getLocale().catch(() => 'es');
+  return <html lang={locale === 'es' ? 'es-AR' : locale} className={`${inter.variable} ${manrope.variable}`}><body>{children}</body></html>;
 }
