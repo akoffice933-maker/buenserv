@@ -110,6 +110,9 @@ X-Content-Type-Options: nosniff
 X-Frame-Options: DENY
 Referrer-Policy: strict-origin-when-cross-origin
 Permissions-Policy: camera=(), microphone=(), geolocation=()
+Strict-Transport-Security: max-age=63072000; includeSubDomains
 ```
 
 A strict Content-Security-Policy should be added after the Vercel deployment, external asset origins and Supabase/Telegram domains are finalized. Do not ship an untested CSP that breaks Next.js hydration or authenticated flows.
+
+`preload` is intentionally not included in HSTS until the canonical domain and every subdomain are confirmed HTTPS-only; preload submission is difficult to reverse.
