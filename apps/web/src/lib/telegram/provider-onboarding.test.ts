@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, parseReportReason} from './provider-onboarding';
+import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, parseReportReason, rateLimitCopyKey} from './provider-onboarding';
 
 describe('provider onboarding utilities', () => {
   it('parses ARS prices without accepting invalid values', () => {
@@ -19,6 +19,11 @@ describe('provider onboarding utilities', () => {
     const cases = [['perfil', 'profile_mismatch'], ['profile', 'profile_mismatch'], ['профиль', 'profile_mismatch'], ['respuesta', 'no_response'], ['response', 'no_response'], ['ответ', 'no_response'], ['spam', 'spam'], ['спам', 'spam'], ['seguridad', 'safety'], ['safety', 'safety'], ['безопасность', 'safety'], ['otro', 'other'], ['other', 'other'], ['другое', 'other']];
     cases.forEach(([input, expected]) => expect(parseReportReason(input)).toBe(expected));
     expect(parseReportReason('unknown')).toBeNull();
+  });
+
+  it('keeps support and report rate-limit copy keys distinct', () => {
+    expect(rateLimitCopyKey('support')).toBe('supportRateLimited');
+    expect(rateLimitCopyKey('report')).toBe('reportRateLimited');
   });
 
   it('has onboarding copy for each supported locale', () => {

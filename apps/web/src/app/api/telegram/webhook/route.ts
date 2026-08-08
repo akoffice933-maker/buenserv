@@ -2,7 +2,7 @@ import {timingSafeEqual} from 'node:crypto';
 import {NextRequest, NextResponse} from 'next/server';
 import {createAdminClient} from '@/lib/supabase/admin';
 import {getServerEnv} from '@/lib/env';
-import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, parseReportReason, sendTelegramMessage, type BotLocale, type OnboardingStep} from '@/lib/telegram/provider-onboarding';
+import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, parseReportReason, rateLimitCopyKey, sendTelegramMessage, type BotLocale, type OnboardingStep} from '@/lib/telegram/provider-onboarding';
 import {reportProviderId, startPayload, startsProviderOnboarding, startsSupport} from '@/lib/telegram/start-payload';
 
 type TelegramUpdate = {update_id: number; message?: {text?: string; photo?: Array<{file_id: string}>; chat?: {id: number}; from?: {id: number; first_name?: string; last_name?: string; language_code?: string}}};
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     const {error: supportError} = await supabase.rpc('submit_support_request', {p_profile_id: profile.id, p_details: details});
     if (supportError?.message.includes('support_rate_limited')) {
       await supabase.from('telegram_support_sessions').delete().eq('profile_id', profile.id);
-      await sendTelegramMessage(env, chatId, onboardingText(locale, 'reportRateLimited'));
+      await sendTelegramMessage(env, chatId, onboardingText(locale, rateLimitCopyKey('support')));
       await markProcessed(); return NextResponse.json({ok: true});
     }
     if (supportError) {
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     const {error: reportError} = await supabase.rpc('submit_authenticated_report', {p_reporter_profile_id: profile.id, p_provider_id: reportSession.provider_id, p_reason: reportSession.reason, p_details: details});
     if (reportError?.message.includes('report_rate_limited')) {
       await supabase.from('telegram_report_sessions').delete().eq('profile_id', profile.id);
-      await sendTelegramMessage(env, chatId, onboardingText(locale, 'supportRateLimited'));
+      await sendTelegramMessage(env, chatId, onboardingText(locale, rateLimitCopyKey('report')));
       await markProcessed(); return NextResponse.json({ok: true});
     }
     if (reportError) return NextResponse.json({error: 'Report submission failed'}, {status: 500});

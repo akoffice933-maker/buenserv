@@ -109,6 +109,10 @@ const barrioInputs: Record<string, string> = {palermo: 'palermo', recoleta: 'rec
 export function parseCategory(value: string) { return categoryInputs[value.trim().toLowerCase()] ?? null; }
 export function parseBarrio(value: string) { return barrioInputs[value.trim().toLowerCase()] ?? null; }
 export function isConfirmation(value: string) { return ['confirmar', 'подтвердить', 'confirm'].includes(value.trim().toLowerCase()); }
+export function rateLimitCopyKey(flow: 'report' | 'support') {
+  return flow === 'report' ? 'reportRateLimited' : 'supportRateLimited';
+}
+
 export function parseReportReason(value: string) {
   const key = value.trim().toLowerCase();
   if (['perfil', 'profile', 'профиль'].includes(key)) return 'profile_mismatch';
