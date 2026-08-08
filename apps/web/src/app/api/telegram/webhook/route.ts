@@ -3,16 +3,13 @@ import {NextRequest, NextResponse} from 'next/server';
 import {createAdminClient} from '@/lib/supabase/admin';
 import {getServerEnv} from '@/lib/env';
 import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, parseReportReason, sendTelegramMessage, type BotLocale, type OnboardingStep} from '@/lib/telegram/provider-onboarding';
+import {reportProviderId, startPayload, startsProviderOnboarding, startsSupport} from '@/lib/telegram/start-payload';
 
 type TelegramUpdate = {update_id: number; message?: {text?: string; photo?: Array<{file_id: string}>; chat?: {id: number}; from?: {id: number; first_name?: string; last_name?: string; language_code?: string}}};
 type Draft = {category_slug?: string; barrio_slug?: string; description?: string; price_from_ars?: number; telegram_photo_file_id?: string};
 
 function normalizeLocale(language?: string): BotLocale { if (language?.startsWith('ru')) return 'ru'; if (language?.startsWith('en')) return 'en'; return 'es-AR'; }
 function secretsMatch(received: string | null, expected: string) { if (!received) return false; const left = Buffer.from(received); const right = Buffer.from(expected); return left.length === right.length && timingSafeEqual(left, right); }
-function startPayload(text?: string) { return text?.trim().match(/^\/start(?:\s+([^\s]+))?$/i)?.[1] ?? null; }
-function startsProviderOnboarding(text?: string) { return /^\/(start\s+provider|provider)\b/i.test(text?.trim() ?? ''); }
-function reportProviderId(text?: string) { const match = text?.trim().match(/^\/start\s+report_([0-9a-f-]{36})$/i); return match?.[1] ?? null; }
-function startsSupport(text?: string) { return /^\/start\s+support$/i.test(text?.trim() ?? ''); }
 
 async function submitProvider(supabase: ReturnType<typeof createAdminClient>, profileId: string, telegramId: number, name: string, draft: Draft) {
   if (!draft.category_slug || !draft.barrio_slug || !draft.description || !draft.price_from_ars || !draft.telegram_photo_file_id) throw new Error('Incomplete onboarding draft');
