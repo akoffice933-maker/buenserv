@@ -212,3 +212,7 @@ Before any public user, Telegram onboarding or production domain launch, Argenti
 - lawful basis, consent and complaint procedure.
 
 Only then may legal pages be indexed and added back to the sitemap.
+
+### Audit log access
+
+`/admin/audit` and `GET /api/admin/audit` are restricted to `admin` and `moderator`. `support` retains access to its support queue but does not receive platform-wide audit visibility, including moderation reasons and cross-team resolution notes.
