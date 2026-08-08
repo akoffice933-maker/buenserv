@@ -216,3 +216,17 @@ Only then may legal pages be indexed and added back to the sitemap.
 ### Audit log access
 
 `/admin/audit` and `GET /api/admin/audit` are restricted to `admin` and `moderator`. `support` retains access to its support queue but does not receive platform-wide audit visibility, including moderation reasons and cross-team resolution notes.
+
+### Billing foundation status
+
+Migration `017_billing_trial_foundation.sql` adds auditable trial and billing-event tables only. It does **not** collect payments, start trials automatically or enable public dated pricing claims.
+
+Before any paid provider product is launched, implement and legally review:
+
+- explicit offer acceptance;
+- server-side trial activation and expiry job;
+- invoice/receipt process for ARS;
+- payment-provider webhook signature verification and idempotency;
+- refund/dispute process;
+- customer/provider communication for any transition;
+- RBAC and audit views for billing events.
