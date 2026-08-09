@@ -8,6 +8,10 @@ export default withNextIntl({
     remotePatterns: []
   },
   poweredByHeader: false,
+  outputFileTracingIncludes: {
+    '/opengraph-image': ['./src/assets/DejaVuSans-Bold.ttf'],
+    '/[locale]/opengraph-image': ['./src/assets/DejaVuSans-Bold.ttf']
+  },
   async headers() {
     return [{
       source: '/:path*',
