@@ -1,6 +1,8 @@
 import type {ServerEnv} from '@/lib/env';
 
 export type BotLocale = 'es-AR' | 'ru' | 'en';
+import {parseCategoryAlias} from '@/lib/categories';
+
 export type OnboardingStep = 'category' | 'barrio' | 'description' | 'price' | 'photo' | 'confirm';
 
 const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 'submissionFailed' | 'invalidPrice' | 'approved' | 'rejected' | 'suspended' | 'reportReason' | 'reportDetails' | 'reportSubmitted' | 'reportRateLimited' | 'support' | 'supportSubmitted' | 'supportFailed' | 'supportRateLimited', string>> = {
@@ -92,21 +94,9 @@ export function parseArsPrice(value: string) {
   return Number.isFinite(price) && price > 0 && price <= 100_000_000 ? Math.round(price) : null;
 }
 
-// TODO(directory-sync): replace aliases with database-managed category labels once CMS is live.
-// Canonical slug validation still happens inside the atomic submit_provider RPC.
-const categoryInputs: Record<string, string> = {
-  limpieza: 'limpieza', cleaning: 'limpieza', 'уборка': 'limpieza',
-  reparaciones: 'reparaciones', repairs: 'reparaciones', ремонт: 'reparaciones', electricista: 'reparaciones', электрик: 'reparaciones',
-  mascotas: 'mascotas', pets: 'mascotas', питомцы: 'mascotas',
-  mudanzas: 'mudanzas', moving: 'mudanzas', переезды: 'mudanzas',
-  clases: 'clases', lessons: 'clases', занятия: 'clases',
-  mensajeria: 'mensajeria', mensajería: 'mensajeria', delivery: 'mensajeria', курьеры: 'mensajeria',
-  taxi: 'taxi-traslados', traslados: 'taxi-traslados', 'taxi y traslados': 'taxi-traslados', 'такси': 'taxi-traslados', transfers: 'taxi-traslados'
-};
-
 const barrioInputs: Record<string, string> = {palermo: 'palermo', recoleta: 'recoleta', belgrano: 'belgrano', caballito: 'caballito', кабальито: 'caballito', бельграно: 'belgrano', реколета: 'recoleta', палермо: 'palermo'};
 
-export function parseCategory(value: string) { return categoryInputs[value.trim().toLowerCase()] ?? null; }
+export function parseCategory(value: string) { return parseCategoryAlias(value); }
 export function parseBarrio(value: string) { return barrioInputs[value.trim().toLowerCase()] ?? null; }
 export function isConfirmation(value: string) { return ['confirmar', 'подтвердить', 'confirm'].includes(value.trim().toLowerCase()); }
 export function rateLimitCopyKey(flow: 'report' | 'support') {
