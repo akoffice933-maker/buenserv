@@ -19,4 +19,10 @@ body { margin: 0; min-width: 320px; background: #FAF9F6; color: #1A1F1D; font-fa
 button, input, select, textarea { font: inherit; }
 a { color: inherit; }
 :focus-visible { outline: 3px solid color-mix(in srgb, #0FA37F 38%, transparent); outline-offset: 3px; }
+html[data-admin-theme='dark'] .admin-page { background: #131A17 !important; color: #F0F5F1 !important; }
+html[data-admin-theme='dark'] .admin-page .bg-white { background: #1D2722 !important; color: #F0F5F1 !important; }
+html[data-admin-theme='dark'] .admin-page .text-bs-muted { color: #A8B5AD !important; }
+html[data-admin-theme='dark'] .admin-page .border-black\/8, html[data-admin-theme='dark'] .admin-page .border-black\/6, html[data-admin-theme='dark'] .admin-page .border-black\/10 { border-color: #334139 !important; }
+html[data-admin-theme='dark'] .admin-page .bg-black\/4 { background: #111814 !important; }
+html[data-admin-theme='dark'] .admin-page .text-bs-ink { color: #F0F5F1 !important; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
