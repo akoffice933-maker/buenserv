@@ -27,7 +27,7 @@ export async function PATCH(request: NextRequest) {
   const input = decisionSchema.safeParse(await request.json().catch(() => null));
   if (!input.success) return NextResponse.json({error: 'Invalid moderation request'}, {status: 400});
   const admin = createAdminClient();
-  const {data: target, error: targetError} = await admin.from('providers').select('profiles(telegram_user_id,locale)').eq('id', input.data.providerId).single();
+  const {data: target, error: targetError} = await admin.from('providers').select('profiles!providers_profile_id_fkey(telegram_user_id,locale)').eq('id', input.data.providerId).single();
   if (targetError || !target) return NextResponse.json({error: 'Provider not found'}, {status: 404});
   const {error} = await admin.rpc('moderate_provider', {
     p_provider_id: input.data.providerId,
