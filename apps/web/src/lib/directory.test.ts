@@ -2,7 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {filterDirectoryProviders, localizedBarrioName, type DirectoryProvider} from './directory';
 
 const mariana: DirectoryProvider = {
-  id: 'provider-1', slug: 'mariana-lopez', photo_path: null, rating: 4.9, reviews_count: 48, accepts_usdt: true,
+  id: 'provider-1', slug: 'mariana-lopez', profiles: {display_name: 'Mariana López'}, photo_path: null, rating: 4.9, reviews_count: 48, accepts_usdt: true,
   provider_categories: [{price_from_ars: 18000, categories: {slug: 'limpieza'}}],
   provider_barrios: [{barrios: {slug: 'palermo', name_es: 'Palermo', name_ru: 'Палермо', name_en: 'Palermo'}}]
 };

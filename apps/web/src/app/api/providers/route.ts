@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = createPublicDirectoryClient();
-    let query = supabase.from('providers').select('id,slug,photo_path,rating,reviews_count,accepts_usdt,provider_categories(price_from_ars,categories(slug)),provider_barrios(barrios(slug,name_es,name_ru,name_en))').eq('status', 'approved').order('rating', {ascending: false}).limit(parsed.data.limit);
+    let query = supabase.from('providers').select('id,slug,photo_path,rating,reviews_count,accepts_usdt,profiles(display_name),provider_categories(price_from_ars,categories(slug)),provider_barrios(barrios(slug,name_es,name_ru,name_en))').eq('status', 'approved').order('rating', {ascending: false}).limit(parsed.data.limit);
     if (parsed.data.usdt === 'true') query = query.eq('accepts_usdt', true);
     const {data, error} = await query;
     if (error) return NextResponse.json({error: 'Directory unavailable'}, {status: 503});
