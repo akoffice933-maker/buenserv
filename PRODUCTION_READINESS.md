@@ -54,3 +54,7 @@ npm run check:bundle
 ```
 
 No public launch should proceed until the commands above are green in CI and the external gates are complete.
+
+## Staging database contract gate
+
+Unit tests, TypeScript and local builds do not validate live PostgREST relationship resolution or RLS policies. After any Supabase FK/select/RLS change, run `npm run smoke:staging` against the real staging project and validate at least one approved provider relation manually before production deployment.

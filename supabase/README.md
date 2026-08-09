@@ -28,3 +28,31 @@ Use a staging project first. Do not apply migrations selectively: later RPC func
 ## Rollback policy
 
 Migrations are additive and should not be edited after staging/production application. Use a new forward migration for corrections, and record the reason in the commit message and audit documentation.
+
+## Required live-staging directory smoke test
+
+Run this after **any** of the following:
+
+- a new foreign key pointing to `profiles`, `categories` or `barrios`;
+- a changed PostgREST embedded `select(...)` contract;
+- an RLS policy change;
+- a Supabase migration that affects the public directory.
+
+```bash
+cd apps/web
+NEXT_PUBLIC_SUPABASE_URL=... \
+NEXT_PUBLIC_SUPABASE_ANON_KEY=... \
+npm run smoke:staging
+```
+
+Expected minimum result on the seeded staging database:
+
+```json
+{
+  "categories": 7,
+  "barrios": 4,
+  "approvedProvidersRead": 0
+}
+```
+
+After the first approved staging provider exists, repeat the smoke test and manually verify that `display_name`, category and barrio are embedded in the returned provider row. This is mandatory because unit tests cannot reproduce PostgREST relationship ambiguity (`PGRST201`) or real RLS behavior.

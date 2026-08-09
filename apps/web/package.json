@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check:bundle": "node scripts/check-bundle-budget.mjs"
+    "check:bundle": "node scripts/check-bundle-budget.mjs",
+    "smoke:staging": "node scripts/staging-directory-smoke.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
