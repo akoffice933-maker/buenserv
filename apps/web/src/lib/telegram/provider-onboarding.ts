@@ -2,6 +2,7 @@ import type {ServerEnv} from '@/lib/env';
 
 export type BotLocale = 'es-AR' | 'ru' | 'en';
 import {parseCategoryAlias} from '@/lib/categories';
+import {parseBarrioAlias} from '@/lib/barrios';
 
 export type OnboardingStep = 'category' | 'barrio' | 'description' | 'price' | 'photo' | 'confirm';
 
@@ -94,10 +95,8 @@ export function parseArsPrice(value: string) {
   return Number.isFinite(price) && price > 0 && price <= 100_000_000 ? Math.round(price) : null;
 }
 
-const barrioInputs: Record<string, string> = {palermo: 'palermo', recoleta: 'recoleta', belgrano: 'belgrano', caballito: 'caballito', кабальито: 'caballito', бельграно: 'belgrano', реколета: 'recoleta', палермо: 'palermo'};
-
 export function parseCategory(value: string) { return parseCategoryAlias(value); }
-export function parseBarrio(value: string) { return barrioInputs[value.trim().toLowerCase()] ?? null; }
+export function parseBarrio(value: string) { return parseBarrioAlias(value); }
 export function isConfirmation(value: string) { return ['confirmar', 'подтвердить', 'confirm'].includes(value.trim().toLowerCase()); }
 export function rateLimitCopyKey(flow: 'report' | 'support') {
   return flow === 'report' ? 'reportRateLimited' : 'supportRateLimited';

@@ -21,6 +21,14 @@ describe('category source of truth', () => {
     });
   });
 
+  it('does not reuse aliases across categories', () => {
+    const seen = new Map<string, string>();
+    CATEGORY_SLUGS.forEach(slug => CATEGORY_META[slug].aliases.forEach(alias => {
+      expect(seen.has(alias)).toBe(false);
+      seen.set(alias, slug);
+    }));
+  });
+
   it('accepts only canonical slugs', () => {
     expect(isCategorySlug('limpieza')).toBe(true);
     expect(isCategorySlug('unknown')).toBe(false);
