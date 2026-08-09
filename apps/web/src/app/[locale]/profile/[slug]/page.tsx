@@ -1,3 +1,4 @@
+import {notFound} from 'next/navigation';
 import {getTranslations} from 'next-intl/server';
 import {SiteHeader} from '@/components/site-header';
 import {ProviderProfile} from '@/components/provider-profile';
@@ -10,18 +11,20 @@ export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({params}: {params: Promise<{locale: string; slug: string}>}) {
   const {locale, slug} = await params; const t = await getTranslations({locale, namespace: 'profile'});
-  try {
-    const provider = await getApprovedProviderBySlug(slug);
-    const profile = one(provider?.profiles);
-    const title = profile?.display_name ?? t('seoTitle');
-    return localizedMetadata(locale, `profile/${slug}`, title, provider?.bio ?? t('seoDescription'));
-  } catch { return localizedMetadata(locale, `profile/${slug}`, t('seoTitle'), t('seoDescription')); }
+  let provider;
+  try { provider = await getApprovedProviderBySlug(slug); } catch { return localizedMetadata(locale, `profile/${slug}`, t('seoTitle'), t('seoDescription')); }
+  if (!provider) notFound();
+  const profile = one(provider.profiles);
+  const title = profile?.display_name ?? t('seoTitle');
+  return localizedMetadata(locale, `profile/${slug}`, title, provider.bio ?? t('seoDescription'));
 }
 
 export default async function ProviderPage({params}: {params: Promise<{locale: string; slug: string}>}) {
   const {locale, slug} = await params;
   const t = await getTranslations('categories');
-  const provider = await getApprovedProviderBySlug(slug).catch(() => null);
+  let provider;
+  try { provider = await getApprovedProviderBySlug(slug); } catch { provider = undefined; }
+  if (provider === null) notFound();
   const profile = one(provider?.profiles);
   const jsonLd = provider ? {
     '@context': 'https://schema.org', '@type': 'LocalBusiness',
