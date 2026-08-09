@@ -15,7 +15,7 @@ const decisionSchema = z.object({providerId: z.string().uuid(), decision: z.enum
 export async function GET() {
   const actor = await requireAdminActor();
   if (isResponse(actor)) return actor;
-  const {data, error} = await createAdminClient().from('providers').select('id,slug,status,bio,onboarding_payload,created_at,profiles(display_name,telegram_user_id),provider_categories(price_from_ars,categories(slug)),provider_barrios(barrios(slug,name_es,name_ru,name_en))').eq('status', 'pending').order('created_at');
+  const {data, error} = await createAdminClient().from('providers').select('id,slug,status,bio,onboarding_payload,created_at,profiles!providers_profile_id_fkey(display_name,telegram_user_id),provider_categories(price_from_ars,categories!provider_categories_category_id_fkey(slug)),provider_barrios(barrios!provider_barrios_barrio_id_fkey(slug,name_es,name_ru,name_en))').eq('status', 'pending').order('created_at');
   if (error) return NextResponse.json({error: 'Moderation queue unavailable'}, {status: 503});
   return NextResponse.json({providers: normalizeModerationProviders(data ?? [])});
 }

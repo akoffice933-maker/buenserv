@@ -10,7 +10,7 @@ const updateSchema = z.object({requestId: z.string().uuid(), status: z.enum(['re
 export async function GET() {
   const actor = await requireAdminActor();
   if (isResponse(actor)) return actor;
-  const {data, error} = await createAdminClient().from('support_requests').select('id,details,status,created_at,profiles(display_name,telegram_user_id)').in('status', ['open', 'reviewing']).order('created_at');
+  const {data, error} = await createAdminClient().from('support_requests').select('id,details,status,created_at,profiles!support_requests_profile_id_fkey(display_name,telegram_user_id)').in('status', ['open', 'reviewing']).order('created_at');
   if (error) return NextResponse.json({error: 'Support queue unavailable'}, {status: 503});
   return NextResponse.json({requests: normalizeSupportRows(data ?? [])});
 }
