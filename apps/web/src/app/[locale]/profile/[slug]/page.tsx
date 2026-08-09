@@ -1,7 +1,7 @@
 import {notFound} from 'next/navigation';
 import {getTranslations} from 'next-intl/server';
 import {SiteHeader} from '@/components/site-header';
-import {ProviderProfile} from '@/components/provider-profile';
+import {ProviderProfile, type ProviderProfileData} from '@/components/provider-profile';
 import {getTelegramBotUsername} from '@/lib/telegram/deep-link';
 import {localizedMetadata} from '@/lib/seo';
 import {getApprovedProviderBySlug} from '@/lib/provider-query';
@@ -34,5 +34,5 @@ export default async function ProviderPage({params}: {params: Promise<{locale: s
     makesOffer: (provider.provider_categories ?? []).map((item: any) => ({'@type': 'Offer', priceCurrency: 'ARS', price: item.price_from_ars, itemOffered: {'@type': 'Service', name: one(item.categories)?.slug}})), 
     aggregateRating: provider.reviews_count > 0 ? {'@type': 'AggregateRating', ratingValue: provider.rating, reviewCount: provider.reviews_count} : undefined
   } : null;
-  return <><SiteHeader locale={locale}/>{jsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(jsonLd).replace(/</g, '\\u003c')}}/>}<main className="mx-auto min-h-[calc(100vh-68px)] max-w-7xl px-5 py-18 lg:px-8"><span className="text-[11px] font-extrabold tracking-[.12em] text-bs-primary uppercase">{t('eyebrow')}</span><ProviderProfile slug={slug} locale={locale} botUsername={getTelegramBotUsername()}/></main></>;
+  return <><SiteHeader locale={locale}/>{jsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(jsonLd).replace(/</g, '\\u003c')}}/>}<main className="mx-auto min-h-[calc(100vh-68px)] max-w-7xl px-5 py-18 lg:px-8"><span className="text-[11px] font-extrabold tracking-[.12em] text-bs-primary uppercase">{t('eyebrow')}</span><ProviderProfile slug={slug} locale={locale} botUsername={getTelegramBotUsername()} initialProfile={(provider as ProviderProfileData | null | undefined) ?? null}/></main></>;
 }
