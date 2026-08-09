@@ -5,6 +5,7 @@ import {createAdminClient} from '@/lib/supabase/admin';
 import {normalizeModerationProviders} from '@/lib/moderation';
 import {ModerationQueue} from '@/components/moderation-queue';
 import {AdminSignOut} from '@/components/admin-sign-out';
+import {PROVIDER_ADMIN_SELECT} from '@/lib/supabase/selects';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,7 @@ export default async function AdminPage() {
   if (isResponse(actor)) redirect('/admin/login');
   const admin = createAdminClient();
   const [{data}, {count: activeCount}, {count: reportCount}, {count: supportCount}] = await Promise.all([
-    admin.from('providers').select('id,slug,status,bio,onboarding_payload,created_at,profiles!providers_profile_id_fkey(display_name,telegram_user_id),provider_categories(price_from_ars,categories!provider_categories_category_id_fkey(slug)),provider_barrios(barrios!provider_barrios_barrio_id_fkey(slug,name_es,name_ru,name_en))').eq('status', 'pending').order('created_at'),
+    admin.from('providers').select(PROVIDER_ADMIN_SELECT).eq('status', 'pending').order('created_at'),
     admin.from('providers').select('id', {count: 'exact', head: true}).eq('status', 'approved'),
     admin.from('reports').select('id', {count: 'exact', head: true}).in('status', ['open', 'reviewing']),
     admin.from('support_requests').select('id', {count: 'exact', head: true}).in('status', ['open', 'reviewing'])
