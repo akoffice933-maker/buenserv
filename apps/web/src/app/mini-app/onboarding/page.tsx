@@ -236,7 +236,7 @@ export default function OnboardingPage() {
 
       <div style={{display: 'flex', gap: 8, marginTop: 'auto'}}>
         {step !== 'category' && step !== 'confirm' && (btn(t.back, back))}
-        {step === 'confirm' ? (btn(t.submit, submit, true)) : null}
+        {step === 'confirm' ? (btn(t.submit, submit, true)) : (step !== 'category' && step !== 'barrio' ? (btn(t.next, next, true)) : null)}
       </div>
     </div>
   );
