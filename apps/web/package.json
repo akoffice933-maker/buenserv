@@ -11,7 +11,8 @@
     "test": "vitest run",
     "check:bundle": "node scripts/check-bundle-budget.mjs",
     "smoke:staging": "node scripts/staging-directory-smoke.mjs",
-    "smoke:leads": "node scripts/staging-lead-lifecycle-smoke.mjs"
+    "smoke:leads": "node scripts/staging-lead-lifecycle-smoke.mjs",
+    "deliver:telegram-outbox": "node scripts/deliver-telegram-outbox.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
