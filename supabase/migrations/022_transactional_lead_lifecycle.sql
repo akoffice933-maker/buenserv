@@ -66,11 +66,11 @@ begin
     (p_event_type = 'expired' and v_last_event not in ('completed', 'cancelled', 'expired'))
   ) then raise exception 'invalid_lead_transition: % -> %', v_last_event, p_event_type; end if;
 
-  v_next_status := case p_event_type
-    when 'provider_replied', 'customer_replied' then 'provider_replied'
-    when 'completed' then 'success'
-    when 'cancelled' then 'cancelled'
-    when 'expired' then 'no_response'
+  v_next_status := case
+    when p_event_type in ('provider_replied', 'customer_replied') then 'provider_replied'
+    when p_event_type = 'completed' then 'success'
+    when p_event_type = 'cancelled' then 'cancelled'
+    when p_event_type = 'expired' then 'no_response'
     else 'contacted'
   end;
 
