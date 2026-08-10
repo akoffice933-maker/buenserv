@@ -89,6 +89,52 @@ export async function sendTelegramMessage(env: ServerEnv, chatId: number, text: 
   if (!response.ok) throw new Error(`Telegram sendMessage failed: ${response.status}`);
 }
 
+/** Category labels for keyboard buttons, keyed by locale. */
+const CATEGORY_LABELS: Record<BotLocale, string[]> = {
+  'es-AR': ['Limpieza', 'Reparaciones', 'Mascotas', 'Mudanzas', 'Clases', 'Mensajería', 'Taxi'],
+  ru: ['Уборка', 'Ремонт', 'Питомцы', 'Переезды', 'Занятия', 'Курьеры', 'Такси'],
+  en: ['Cleaning', 'Repairs', 'Pets', 'Moving', 'Lessons', 'Delivery', 'Taxi']
+};
+
+/** Barrio labels for keyboard buttons, keyed by locale. */
+const BARRIO_LABELS: Record<BotLocale, string[]> = {
+  'es-AR': ['Palermo', 'Recoleta', 'Belgrano', 'Caballito'],
+  ru: ['Палермо', 'Реколета', 'Бельграно', 'Кабальито'],
+  en: ['Palermo', 'Recoleta', 'Belgrano', 'Caballito']
+};
+
+/** Build a 2-column ReplyKeyboardMarkup from a list of labels. */
+function keyboardButtons(labels: string[]): {keyboard: Array<Array<{text: string}>>; resize_keyboard: true; one_time_keyboard: true} {
+  const rows: Array<Array<{text: string}>> = [];
+  for (let i = 0; i < labels.length; i += 2) {
+    rows.push(labels.slice(i, i + 2).map(text => ({text})));
+  }
+  return {keyboard: rows, resize_keyboard: true, one_time_keyboard: true};
+}
+
+/** Send a message with a reply keyboard. */
+export async function sendTelegramKeyboard(env: ServerEnv, chatId: number, text: string, labels: string[]) {
+  const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({chat_id: chatId, text, reply_markup: keyboardButtons(labels)})
+  });
+  if (!response.ok) throw new Error(`Telegram sendKeyboard failed: ${response.status}`);
+}
+
+/** Remove the reply keyboard (call after a keyboard step is completed). */
+export async function removeTelegramKeyboard(env: ServerEnv, chatId: number, text: string) {
+  const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({chat_id: chatId, text, reply_markup: {remove_keyboard: true}})
+  });
+  if (!response.ok) throw new Error(`Telegram removeKeyboard failed: ${response.status}`);
+}
+
+export function categoryKeyboard(locale: BotLocale) { return CATEGORY_LABELS[locale]; }
+export function barrioKeyboard(locale: BotLocale) { return BARRIO_LABELS[locale]; }
+
 export function parseArsPrice(value: string) {
   const normalized = value.trim().replace(/[.\s]/g, '').replace(',', '.');
   const price = Number(normalized);

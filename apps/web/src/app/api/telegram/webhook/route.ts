@@ -2,7 +2,7 @@ import {timingSafeEqual} from 'node:crypto';
 import {NextRequest, NextResponse} from 'next/server';
 import {createAdminClient} from '@/lib/supabase/admin';
 import {getServerEnv} from '@/lib/env';
-import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, parseReportReason, rateLimitCopyKey, sendTelegramMessage, type BotLocale, type OnboardingStep} from '@/lib/telegram/provider-onboarding';
+import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, parseReportReason, rateLimitCopyKey, sendTelegramMessage, sendTelegramKeyboard, removeTelegramKeyboard, categoryKeyboard, barrioKeyboard, type BotLocale, type OnboardingStep} from '@/lib/telegram/provider-onboarding';
 import {reportProviderId, startPayload, startsProviderOnboarding, startsSupport} from '@/lib/telegram/start-payload';
 
 type TelegramUpdate = {update_id: number; message?: {text?: string; photo?: Array<{file_id: string}>; chat?: {id: number}; from?: {id: number; first_name?: string; last_name?: string; language_code?: string}}};
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
   if (startsProviderOnboarding(message.text)) {
     await supabase.from('provider_onboarding_sessions').upsert({profile_id: profile.id, step: 'category', draft: {}}, {onConflict: 'profile_id'});
-    await sendTelegramMessage(env, chatId, `${onboardingText(locale, 'welcome')}\n\n${onboardingText(locale, 'category')}`);
+    await sendTelegramKeyboard(env, chatId, `${onboardingText(locale, 'welcome')}\n\n${onboardingText(locale, 'category')}`, categoryKeyboard(locale));
     await markProcessed();
     return NextResponse.json({ok: true});
   }
@@ -124,8 +124,16 @@ export async function POST(request: NextRequest) {
   else if (session.step === 'price') { const price = parseArsPrice(message.text ?? ''); if (!price) reply = onboardingText(locale, 'invalidPrice'); else { draft.price_from_ars = price; next = 'photo'; reply = onboardingText(locale, 'photo'); } }
   else if (session.step === 'photo') { const photo = message.photo?.at(-1)?.file_id; if (!photo) reply = onboardingText(locale, 'photo'); else { draft.telegram_photo_file_id = photo; next = 'confirm'; reply = onboardingText(locale, 'confirm'); } }
   else if (session.step === 'confirm') { if (!isConfirmation(message.text ?? '')) reply = onboardingText(locale, 'confirm'); else { try { await submitProvider(supabase, profile.id, user.id, displayName, draft); await supabase.from('provider_onboarding_sessions').delete().eq('profile_id', profile.id); reply = onboardingText(locale, 'submitted'); } catch { try { await sendTelegramMessage(env, chatId, onboardingText(locale, 'submissionFailed')); } catch {} return NextResponse.json({error: 'Submission failed'}, {status: 500}); } } }
-  if (next) await supabase.from('provider_onboarding_sessions').update({step: next, draft, updated_at: new Date().toISOString()}).eq('profile_id', profile.id);
-  try { await sendTelegramMessage(env, chatId, reply); } catch { return NextResponse.json({error: 'Telegram delivery failed'}, {status: 502}); }
+  if (next) {
+    await supabase.from('provider_onboarding_sessions').update({step: next, draft, updated_at: new Date().toISOString()}).eq('profile_id', profile.id);
+    if (next === 'barrio') { await sendTelegramKeyboard(env, chatId, onboardingText(locale, 'barrio'), barrioKeyboard(locale)); await markProcessed(); return NextResponse.json({ok: true}); }
+    if (next === 'description' || next === 'price' || next === 'photo' || next === 'confirm') { await removeTelegramKeyboard(env, chatId, reply); await markProcessed(); return NextResponse.json({ok: true}); }
+  }
+  // Repeat the current step keyboard when the user's input was invalid.
+  if (session.step === 'category') { await sendTelegramKeyboard(env, chatId, reply, categoryKeyboard(locale)); }
+  else if (session.step === 'barrio') { await sendTelegramKeyboard(env, chatId, reply, barrioKeyboard(locale)); }
+  else { await sendTelegramMessage(env, chatId, reply); }
+  await markProcessed(); return NextResponse.json({ok: true});
   await markProcessed();
   return NextResponse.json({ok: true});
 }
