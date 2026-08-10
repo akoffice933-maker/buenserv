@@ -234,3 +234,7 @@ Before any paid provider product is launched, implement and legally review:
 ### Lead model boundary
 
 Migration `020_lead_foundation.sql` establishes the canonical lead record and lifecycle states. It does not create leads automatically yet: lead creation must be wired only when a Telegram flow can reliably distinguish a provider profile view from a provider contact and can record provider notification/reply events without misrepresenting the user journey.
+
+### Lead event history
+
+Migration `021_lead_event_history.sql` introduces `lead_events` as the immutable fact stream and preserves `leads.status` as the current summary state. Telegram workflow implementation must write an event with an `external_source` and `external_id` for every incoming or emitted event, so retries cannot create duplicate leads or duplicate lead facts.
