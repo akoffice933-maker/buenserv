@@ -46,10 +46,51 @@ export async function POST(request: NextRequest) {
   const {data: profile, error: profileError} = await supabase.from('profiles').upsert({telegram_user_id: user.id, display_name: displayName, locale}, {onConflict: 'telegram_user_id'}).select('id').single();
   if (profileError || !profile) return NextResponse.json({error: 'Temporary error'}, {status: 500});
 
-  const payload = startPayload(message.text);
+  const msgText = message.text?.trim() ?? '';
+  const payload = startPayload(msgText);
   if (payload) await supabase.from('telegram_start_events').insert({update_id: update.update_id, profile_id: profile.id, payload});
 
-  if (startsSupport(message.text)) {
+  // Welcome / start — show language selection and main menu
+  if (/^\/start$/i.test(msgText)) {
+    const welcomeText = `👋 <b>Welcome to BuenServ!</b>\n\n🇪🇸 Bienvenido a BuenServ — tu mercado de servicios locales en Buenos Aires.\n🇷🇺 Добро пожаловать в BuenServ — ваш маркет местных услуг в Буэнос-Айресе.\n🇬🇧 Welcome to BuenServ — your local services marketplace in Buenos Aires.\n\nSelect your language / Выберите язык / Elige tu idioma:`;
+    const keyboard = {
+      keyboard: [[{text: '🇪🇸 Español'}], [{text: '🇷🇺 Русский'}], [{text: '🇬🇧 English'}]],
+      resize_keyboard: true, one_time_keyboard: true
+    };
+    await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST', headers: {'content-type': 'application/json'},
+      body: JSON.stringify({chat_id: chatId, text: welcomeText, parse_mode: 'HTML', reply_markup: keyboard})
+    });
+    await markProcessed(); return NextResponse.json({ok: true});
+  }
+
+  // Language selection handler
+  const langMap: Record<string, string> = {'español': 'es-AR', 'espanol': 'es-AR', 'русский': 'ru', 'english': 'en'};
+  const langKey = msgText.toLowerCase().replace(/^[^\w]+/, '');
+  if (langMap[langKey]) {
+    const newLocale = langMap[langKey] as BotLocale;
+    await supabase.from('profiles').update({locale: newLocale}).eq('id', profile.id);
+    const welcome = {es: '¡Listo! Idioma configurado. ¿Qué te gustaría hacer?', ru: 'Готово! Язык установлен. Что вы хотите сделать?', en: 'Done! Language set. What would you like to do?'};
+    const miniAppUrl = `${env.NEXT_PUBLIC_APP_URL}/mini-app/onboarding`;
+    const menu = {
+      inline_keyboard: [
+        [{text: '📋 Register as provider', web_app: {url: miniAppUrl}}],
+        [{text: '💬 Support', callback_data: 'support'}],
+        [{text: '🔄 Change language', callback_data: 'lang'}]
+      ]
+    };
+    await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST', headers: {'content-type': 'application/json'},
+      body: JSON.stringify({chat_id: chatId, text: welcome[newLocale === 'es-AR' ? 'es' : newLocale === 'ru' ? 'ru' : 'en'], reply_markup: {remove_keyboard: true}})
+    });
+    await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST', headers: {'content-type': 'application/json'},
+      body: JSON.stringify({chat_id: chatId, text: 'Choose an option:', reply_markup: menu})
+    });
+    await markProcessed(); return NextResponse.json({ok: true});
+  }
+
+  if (startsSupport(msgText)) {
     await supabase.from('telegram_support_sessions').upsert({profile_id: profile.id}, {onConflict: 'profile_id'});
     await sendTelegramMessage(env, chatId, onboardingText(locale, 'support'));
     await markProcessed();

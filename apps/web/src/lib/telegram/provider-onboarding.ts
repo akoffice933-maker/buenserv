@@ -151,6 +151,16 @@ export async function sendTelegramMiniApp(env: ServerEnv, chatId: number, text: 
   if (!response.ok) throw new Error(`Telegram sendMiniApp failed: ${response.status}`);
 }
 
+/** Language selection keyboard (inline). */
+export function languageKeyboard(env: ServerEnv) {
+  return {
+    inline_keyboard: [
+      [{text: '🇪🇸 Español', callback_data: 'lang_es-AR'}, {text: '🇷🇺 Русский', callback_data: 'lang_ru'}],
+      [{text: '🇬🇧 English', callback_data: 'lang_en'}]
+    ]
+  };
+}
+
 export function parseArsPrice(value: string) {
   const normalized = value.trim().replace(/[.\s]/g, '').replace(',', '.');
   const price = Number(normalized);
