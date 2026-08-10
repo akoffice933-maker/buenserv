@@ -230,3 +230,7 @@ Before any paid provider product is launched, implement and legally review:
 - refund/dispute process;
 - customer/provider communication for any transition;
 - RBAC and audit views for billing events.
+
+### Lead model boundary
+
+Migration `020_lead_foundation.sql` establishes the canonical lead record and lifecycle states. It does not create leads automatically yet: lead creation must be wired only when a Telegram flow can reliably distinguish a provider profile view from a provider contact and can record provider notification/reply events without misrepresenting the user journey.
