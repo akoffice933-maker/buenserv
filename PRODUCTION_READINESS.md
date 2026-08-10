@@ -58,3 +58,7 @@ No public launch should proceed until the commands above are green in CI and the
 ## Staging database contract gate
 
 Unit tests, TypeScript and local builds do not validate live PostgREST relationship resolution or RLS policies. After any Supabase FK/select/RLS change, run `npm run smoke:staging` against the real staging project and validate at least one approved provider relation manually before production deployment.
+
+## Lead lifecycle database gate
+
+Before enabling real lead capture, apply migrations `020`–`024` and run `npm run smoke:leads` against staging. Verify that duplicate external IDs are idempotent, invalid transitions are rejected, `lead_events` cannot be updated/deleted, and direct `leads.status` changes are blocked outside `record_lead_event`.

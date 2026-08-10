@@ -56,3 +56,33 @@ Expected minimum result on the seeded staging database:
 ```
 
 After the first approved staging provider exists, repeat the smoke test and manually verify that `display_name`, category and barrio are embedded in the returned provider row. This is mandatory because unit tests cannot reproduce PostgREST relationship ambiguity (`PGRST201`) or real RLS behavior.
+
+## Required lead lifecycle smoke test
+
+After a real approved provider and customer profile exist in staging, run:
+
+```bash
+cd apps/web
+NEXT_PUBLIC_SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+LEAD_SMOKE_CUSTOMER_PROFILE_ID=... \
+LEAD_SMOKE_PROVIDER_ID=... \
+LEAD_SMOKE_PROVIDER_PROFILE_ID=... \
+LEAD_SMOKE_CATEGORY_ID=... \
+LEAD_SMOKE_BARRIO_ID=... \
+npm run smoke:leads
+```
+
+Expected result:
+
+```json
+{"status":"success","smoke":"passed"}
+```
+
+The script verifies the canonical sequence:
+
+```text
+created → customer_contacted → provider_notified → provider_replied → completed
+```
+
+Do not run this against production without a clearly marked internal test provider and customer profile.
