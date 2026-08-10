@@ -8,7 +8,10 @@ export function verifyTelegramWebAppInitData(initData: string, botToken: string,
   const hash = params.get('hash');
   const authDate = Number(params.get('auth_date'));
   const userRaw = params.get('user');
-  if (!hash || !authDate || !userRaw || Date.now() / 1000 - authDate > maxAgeSeconds) throw new Error('Invalid Telegram Mini App init data');
+  const ageSeconds = Math.floor(Date.now() / 1000) - authDate;
+  // Reject stale sessions and clocks materially ahead of the server. State-changing
+  // Mini App routes pass a short maxAgeSeconds window to reduce replay exposure.
+  if (!hash || !authDate || !userRaw || ageSeconds > maxAgeSeconds || ageSeconds < -30) throw new Error('Invalid Telegram Mini App init data');
   params.delete('hash');
   const dataCheckString = [...params.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => `${key}=${value}`).join('\n');
   const secret = createHmac('sha256', 'WebAppData').update(botToken).digest();

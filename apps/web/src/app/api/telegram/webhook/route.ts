@@ -73,8 +73,8 @@ export async function POST(request: NextRequest) {
 
   // Welcome / start — Mini App button + language selection
   if (/^\/start$/i.test(msgText)) {
-    const miniAppUrl = `${env.NEXT_PUBLIC_APP_URL}/mini-app/onboarding`;
-    const welcome = `👋 <b>BuenServ</b>\n\n🇪🇸 Servicios locales de confianza en Buenos Aires.\n🇷🇺 Надёжные местные услуги в Буэнос-Айресе.\n🇬🇧 Trusted local services in Buenos Aires.\n\n👇 Open the app to register or explore.`;
+    const miniAppUrl = `${env.NEXT_PUBLIC_APP_URL}/mini-app`;
+    const welcome = `👋 <b>BuenServ</b>\n\n🇪🇸 Servicios locales de confianza en Buenos Aires.\n🇷🇺 Надёжные местные услуги в Буэнос-Айресе.\n🇬🇧 Trusted local services in Buenos Aires.\n\n👇 Open your cabinet to explore or track requests.`;
     const menu = {
       inline_keyboard: [
         [{text: '🚀 Open Mini App', web_app: {url: miniAppUrl}}],
