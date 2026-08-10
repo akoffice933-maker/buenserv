@@ -14,7 +14,7 @@ const I18N = {
     barrio: '¿En qué barrio trabajás?',
     description: 'Contanos sobre tu experiencia',
     price: 'Precio orientativo en ARS',
-    photo: 'Subí una foto de perfil',
+    photo: 'Foto de perfil en Telegram',
     confirm: 'Confirmá tus datos',
     submitted: '✅ ¡Enviado!',
     submittedDesc: 'Tu perfil está en moderación.',
@@ -26,8 +26,7 @@ const I18N = {
     errBar: 'Elegí un barrio',
     errDesc: 'Mínimo 20 caracteres',
     errPrice: 'Precio inválido',
-    errPhoto: 'Subí una foto',
-    next: 'Siguiente',
+        next: 'Siguiente',
     back: 'Atrás',
     submit: 'Enviar',
     sending: 'Enviando...',
@@ -40,7 +39,7 @@ const I18N = {
     barrio: 'В каком районе работаете?',
     description: 'Расскажите о своём опыте',
     price: 'Цена в ARS',
-    photo: 'Загрузите фото профиля',
+    photo: 'Фото профиля в Telegram',
     confirm: 'Подтвердите данные',
     submitted: '✅ Отправлено!',
     submittedDesc: 'Ваш профиль на модерации.',
@@ -52,8 +51,7 @@ const I18N = {
     errBar: 'Выберите район',
     errDesc: 'Минимум 20 символов',
     errPrice: 'Некорректная цена',
-    errPhoto: 'Загрузите фото',
-    next: 'Далее',
+        next: 'Далее',
     back: 'Назад',
     submit: 'Отправить',
     sending: 'Отправка...',
@@ -66,7 +64,7 @@ const I18N = {
     barrio: 'Which neighbourhood?',
     description: 'Tell us about your experience',
     price: 'Price in ARS',
-    photo: 'Upload a profile photo',
+    photo: 'Profile photo in Telegram',
     confirm: 'Confirm your details',
     submitted: '✅ Submitted!',
     submittedDesc: 'Your profile is pending moderation.',
@@ -78,8 +76,7 @@ const I18N = {
     errBar: 'Select a barrio',
     errDesc: 'Minimum 20 characters',
     errPrice: 'Invalid price',
-    errPhoto: 'Upload a photo',
-    next: 'Next',
+        next: 'Next',
     back: 'Back',
     submit: 'Submit',
     sending: 'Sending...',
@@ -91,8 +88,8 @@ const I18N = {
 const CATEGORIES = ['limpieza', 'reparaciones', 'mascotas', 'mudanzas', 'clases', 'mensajeria', 'taxi-traslados'];
 const BARRIOS = ['palermo', 'recoleta', 'belgrano', 'caballito'];
 
-type Step = 'category' | 'barrio' | 'description' | 'price' | 'photo' | 'confirm' | 'done';
-const STEPS: Step[] = ['category', 'barrio', 'description', 'price', 'photo', 'confirm', 'done'];
+type Step = 'category' | 'barrio' | 'description' | 'price' | 'confirm' | 'done';
+const STEPS: Step[] = ['category', 'barrio', 'description', 'price', 'confirm', 'done'];
 
 export default function OnboardingPage() {
   const [lang, setLang] = useState<Lang>('es');
@@ -101,7 +98,7 @@ export default function OnboardingPage() {
   const [barrio, setBarrio] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [photo, setPhoto] = useState<File | null>(null);
+  const [initData, setInitData] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [started, setStarted] = useState(false);
@@ -110,7 +107,7 @@ export default function OnboardingPage() {
   const t = I18N[lang];
 
   useEffect(() => {
-    try { const lp = retrieveLaunchParams(); if (lp?.tgWebAppData) postEvent('web_app_expand'); } catch {}
+    try { const lp = retrieveLaunchParams(); if (lp?.tgWebAppData) { setInitData(String(lp.tgWebAppData)); postEvent('web_app_expand'); } } catch {}
     setStarted(true);
   }, []);
 
@@ -125,7 +122,6 @@ export default function OnboardingPage() {
     if (step === 'barrio' && !barrio) { setError(t.errBar); return; }
     if (step === 'description' && description.length < 20) { setError(t.errDesc); return; }
     if (step === 'price' && (!price || isNaN(Number(price)) || Number(price) <= 0)) { setError(t.errPrice); return; }
-    if (step === 'photo' && !photo) { setError(t.errPhoto); return; }
     if (stepIdx < STEPS.length - 1) setStep(STEPS[stepIdx + 1]);
   };
 
@@ -139,7 +135,7 @@ export default function OnboardingPage() {
       fd.append('barrio', barrio);
       fd.append('description', description);
       fd.append('price', price);
-      if (photo) fd.append('photo', photo);
+      fd.append('initData', initData);
       const res = await fetch('/api/mini-app/submit', {method: 'POST', body: fd});
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? t.error);
@@ -182,7 +178,7 @@ export default function OnboardingPage() {
         </button>
       </div>
       <p style={{fontSize: 12, color: 'var(--tg-theme-hint-color, #999)', textTransform: 'uppercase', margin: 0}}>{stepIdx + 1} / {STEPS.length - 1}</p>
-      <h2 style={{fontSize: 20, margin: 0}}>{t[step === 'category' ? 'category' : step === 'barrio' ? 'barrio' : step === 'description' ? 'description' : step === 'price' ? 'price' : step === 'photo' ? 'photo' : 'confirm']}</h2>
+      <h2 style={{fontSize: 20, margin: 0}}>{t[step === 'category' ? 'category' : step === 'barrio' ? 'barrio' : step === 'description' ? 'description' : step === 'price' ? 'price' : 'confirm']}</h2>
 
       {step === 'category' && (
         <div style={{display: 'flex', flexDirection: 'column', gap: 8}}>
@@ -214,11 +210,6 @@ export default function OnboardingPage() {
       {step === 'price' && (
         <input value={price} onChange={e => setPrice(e.target.value)} placeholder={t.pricePH} type="number"
           style={{padding: 14, border: '1px solid var(--tg-theme-secondary-bg-color, #ddd)', borderRadius: 12, background: 'var(--tg-theme-secondary-bg-color, #f5f5f5)', color: 'var(--tg-theme-text-color, #000)', fontSize: 16}} />
-      )}
-
-      {step === 'photo' && (
-        <input type="file" accept="image/*" capture="environment" onChange={e => setPhoto(e.target.files?.[0] ?? null)}
-          style={{padding: 14, border: '1px solid var(--tg-theme-secondary-bg-color, #ddd)', borderRadius: 12, background: 'var(--tg-theme-secondary-bg-color, #f5f5f5)', color: 'var(--tg-theme-text-color, #000)', fontSize: 14}} />
       )}
 
       {step === 'confirm' && (

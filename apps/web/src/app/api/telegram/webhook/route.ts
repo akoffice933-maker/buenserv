@@ -5,7 +5,9 @@ import {getServerEnv} from '@/lib/env';
 import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, parseReportReason, rateLimitCopyKey, sendTelegramMessage, sendTelegramKeyboard, removeTelegramKeyboard, sendTelegramMiniApp, categoryKeyboard, barrioKeyboard, type BotLocale, type OnboardingStep} from '@/lib/telegram/provider-onboarding';
 import {reportProviderId, startPayload, startsProviderOnboarding, startsSupport} from '@/lib/telegram/start-payload';
 
-type TelegramUpdate = {update_id: number; message?: {text?: string; photo?: Array<{file_id: string}>; chat?: {id: number}; from?: {id: number; first_name?: string; last_name?: string; language_code?: string}}};
+type TelegramUser = {id: number; first_name?: string; last_name?: string; language_code?: string};
+type TelegramMessage = {text?: string; photo?: Array<{file_id: string}>; chat?: {id: number}; from?: TelegramUser};
+type TelegramUpdate = {update_id: number; message?: TelegramMessage; callback_query?: {id: string; data?: string; from: TelegramUser; message?: TelegramMessage}};
 type Draft = {category_slug?: string; barrio_slug?: string; description?: string; price_from_ars?: number; telegram_photo_file_id?: string};
 
 function normalizeLocale(language?: string): BotLocale { if (language?.startsWith('ru')) return 'ru'; if (language?.startsWith('en')) return 'en'; return 'es-AR'; }
@@ -30,7 +32,10 @@ export async function POST(request: NextRequest) {
   const env = getServerEnv();
   if (!secretsMatch(request.headers.get('x-telegram-bot-api-secret-token'), env.TELEGRAM_WEBHOOK_SECRET)) return NextResponse.json({error: 'Unauthorized'}, {status: 401});
   let update: TelegramUpdate; try { update = await request.json() as TelegramUpdate; } catch { return NextResponse.json({error: 'Invalid JSON'}, {status: 400}); }
-  const message = update.message; const user = message?.from; const chatId = message?.chat?.id;
+  const callback = update.callback_query;
+  const message = update.message ?? callback?.message;
+  const user = message?.from ?? callback?.from;
+  const chatId = message?.chat?.id;
   if (!user || !chatId) return NextResponse.json({ok: true});
   const supabase = createAdminClient();
   const {data: existingUpdate, error: lookupError} = await supabase.from('telegram_updates').select('processed_at').eq('update_id', update.update_id).maybeSingle();
@@ -45,6 +50,22 @@ export async function POST(request: NextRequest) {
   const locale = normalizeLocale(user.language_code); const displayName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'BuenServ user';
   const {data: profile, error: profileError} = await supabase.from('profiles').upsert({telegram_user_id: user.id, display_name: displayName, locale}, {onConflict: 'telegram_user_id'}).select('id').single();
   if (profileError || !profile) return NextResponse.json({error: 'Temporary error'}, {status: 500});
+
+  if (callback?.data) {
+    const callbackData = callback.data;
+    if (callbackData.startsWith('lang_')) {
+      const selected = callbackData.slice(5);
+      const selectedLocale: BotLocale = selected === 'ru' ? 'ru' : selected === 'en' ? 'en' : 'es-AR';
+      await supabase.from('profiles').update({locale: selectedLocale}).eq('id', profile.id);
+      await sendTelegramMessage(env, chatId, selectedLocale === 'ru' ? 'Язык установлен.' : selectedLocale === 'en' ? 'Language set.' : 'Idioma configurado.');
+    } else if (callbackData === 'support') {
+      await supabase.from('telegram_support_sessions').upsert({profile_id: profile.id}, {onConflict: 'profile_id'});
+      await sendTelegramMessage(env, chatId, onboardingText(locale, 'support'));
+    }
+    await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({callback_query_id: callback.id})});
+    await markProcessed();
+    return NextResponse.json({ok: true});
+  }
 
   const msgText = message.text?.trim() ?? '';
   const payload = startPayload(msgText);
@@ -154,6 +175,4 @@ export async function POST(request: NextRequest) {
   else if (session.step === 'barrio') { await sendTelegramKeyboard(env, chatId, reply, barrioKeyboard(locale)); }
   else { await sendTelegramMessage(env, chatId, reply); }
   await markProcessed(); return NextResponse.json({ok: true});
-  await markProcessed();
-  return NextResponse.json({ok: true});
 }
