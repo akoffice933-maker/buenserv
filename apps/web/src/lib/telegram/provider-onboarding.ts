@@ -135,6 +135,22 @@ export async function removeTelegramKeyboard(env: ServerEnv, chatId: number, tex
 export function categoryKeyboard(locale: BotLocale) { return CATEGORY_LABELS[locale]; }
 export function barrioKeyboard(locale: BotLocale) { return BARRIO_LABELS[locale]; }
 
+/** Send a message with an inline button that opens the Mini App onboarding. */
+export async function sendTelegramMiniApp(env: ServerEnv, chatId: number, text: string, appUrl: string) {
+  const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      reply_markup: {
+        inline_keyboard: [[{text: '🖥️ Open Mini App', web_app: {url: appUrl}}]]
+      }
+    })
+  });
+  if (!response.ok) throw new Error(`Telegram sendMiniApp failed: ${response.status}`);
+}
+
 export function parseArsPrice(value: string) {
   const normalized = value.trim().replace(/[.\s]/g, '').replace(',', '.');
   const price = Number(normalized);

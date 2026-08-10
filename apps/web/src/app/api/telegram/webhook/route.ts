@@ -2,7 +2,7 @@ import {timingSafeEqual} from 'node:crypto';
 import {NextRequest, NextResponse} from 'next/server';
 import {createAdminClient} from '@/lib/supabase/admin';
 import {getServerEnv} from '@/lib/env';
-import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, parseReportReason, rateLimitCopyKey, sendTelegramMessage, sendTelegramKeyboard, removeTelegramKeyboard, categoryKeyboard, barrioKeyboard, type BotLocale, type OnboardingStep} from '@/lib/telegram/provider-onboarding';
+import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, parseReportReason, rateLimitCopyKey, sendTelegramMessage, sendTelegramKeyboard, removeTelegramKeyboard, sendTelegramMiniApp, categoryKeyboard, barrioKeyboard, type BotLocale, type OnboardingStep} from '@/lib/telegram/provider-onboarding';
 import {reportProviderId, startPayload, startsProviderOnboarding, startsSupport} from '@/lib/telegram/start-payload';
 
 type TelegramUpdate = {update_id: number; message?: {text?: string; photo?: Array<{file_id: string}>; chat?: {id: number}; from?: {id: number; first_name?: string; last_name?: string; language_code?: string}}};
@@ -68,7 +68,8 @@ export async function POST(request: NextRequest) {
 
   if (startsProviderOnboarding(message.text)) {
     await supabase.from('provider_onboarding_sessions').upsert({profile_id: profile.id, step: 'category', draft: {}}, {onConflict: 'profile_id'});
-    await sendTelegramKeyboard(env, chatId, `${onboardingText(locale, 'welcome')}\n\n${onboardingText(locale, 'category')}`, categoryKeyboard(locale));
+    const miniAppUrl = `${env.NEXT_PUBLIC_APP_URL}/mini-app/onboarding`;
+    await sendTelegramMiniApp(env, chatId, `${onboardingText(locale, 'welcome')}\n\nClick the button below to open the onboarding form.`, miniAppUrl);
     await markProcessed();
     return NextResponse.json({ok: true});
   }
