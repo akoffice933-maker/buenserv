@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       profile_id: profile.id,
       slug: `mini-${Date.now()}`,
       status: 'pending',
-      description
+      bio: description
     }).select('id').single();
 
     if (providerError || !provider) {
