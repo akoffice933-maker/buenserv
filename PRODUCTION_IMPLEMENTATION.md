@@ -238,3 +238,20 @@ Migration `020_lead_foundation.sql` establishes the canonical lead record and li
 ### Lead event history
 
 Migration `021_lead_event_history.sql` introduces `lead_events` as the immutable fact stream and preserves `leads.status` as the current summary state. Telegram workflow implementation must write an event with an `external_source` and `external_id` for every incoming or emitted event, so retries cannot create duplicate leads or duplicate lead facts.
+
+### Transactional lead lifecycle
+
+Migration `022_transactional_lead_lifecycle.sql` is the only permitted server-side write path once lead capture is enabled:
+
+```text
+create_lead(...)
+→ lead + created event atomically
+
+record_lead_event(...)
+→ validate transition
+→ idempotency check
+→ append event
+→ update lead summary status atomically
+```
+
+All callers must provide a non-null `external_source` and `external_id`. Direct table inserts are not a valid Telegram workflow path.
