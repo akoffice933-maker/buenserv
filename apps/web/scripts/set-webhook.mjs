@@ -3,8 +3,8 @@
 // Usage: node scripts/set-webhook.mjs <tunnel-url>
 // Example: node scripts/set-webhook.mjs https://abc123.trycloudflare.com
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8942559684:AAFK70lOPRbMEKC7wWiUHbyptQVdS9T_tNE';
-const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || '21966bcc72c45e02be8b96390b27fd2e0eaae75ceb81815c27b1abcde8ba5c54';
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 
 const tunnelUrl = process.argv[2];
 if (!tunnelUrl) {
