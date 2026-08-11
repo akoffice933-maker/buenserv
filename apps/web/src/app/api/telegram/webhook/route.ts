@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
   if (startsProviderOnboarding(message.text)) {
     await supabase.from('provider_onboarding_sessions').upsert({profile_id: profile.id, step: 'category', draft: {}}, {onConflict: 'profile_id'});
     const miniAppUrl = `${env.NEXT_PUBLIC_APP_URL}/mini-app/onboarding`;
-    await sendTelegramMiniApp(env, chatId, `${onboardingText(locale, 'welcome')}\n\nClick the button below to open the onboarding form.`, miniAppUrl);
+    await sendTelegramMiniApp(env, chatId, onboardingText(locale, 'welcome'), miniAppUrl);
     await markProcessed();
     return NextResponse.json({ok: true});
   }
