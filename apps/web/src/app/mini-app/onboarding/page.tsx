@@ -1,7 +1,6 @@
 'use client';
 
 import {useEffect, useState} from 'react';
-import {init, postEvent} from '@telegram-apps/sdk';
 
 type Lang = 'es' | 'ru' | 'en';
 
@@ -108,7 +107,6 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     try {
-      init();
       const w = window as unknown as {Telegram?: {WebApp?: {initData?: string; expand?: () => void; close?: () => void}}};
       if (w.Telegram?.WebApp?.initData) {
         setInitData(w.Telegram.WebApp.initData);
@@ -146,7 +144,7 @@ export default function OnboardingPage() {
       const res = await fetch('/api/mini-app/submit', {method: 'POST', body: fd});
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? t.error);
-      try { postEvent('web_app_close'); } catch {}
+      try { (window as unknown as {Telegram?: {WebApp?: {close?: () => void}}}).Telegram?.WebApp?.close?.(); } catch {}
       setStep('done');
     } catch (err) { setError(err instanceof Error ? err.message : t.error); }
     finally { setSubmitting(false); }
