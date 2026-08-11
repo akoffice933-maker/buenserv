@@ -151,14 +151,101 @@ export async function sendTelegramMiniApp(env: ServerEnv, chatId: number, text: 
   if (!response.ok) throw new Error(`Telegram sendMiniApp failed: ${response.status}`);
 }
 
-/** Language selection keyboard (inline). */
-export function languageKeyboard(env: ServerEnv) {
+/** Language sub-menu (inline). Shown behind the "🌐 Language" main-menu button. */
+export function languageKeyboard() {
   return {
     inline_keyboard: [
       [{text: '🇪🇸 Español', callback_data: 'lang_es-AR'}, {text: '🇷🇺 Русский', callback_data: 'lang_ru'}],
       [{text: '🇬🇧 English', callback_data: 'lang_en'}]
     ]
   };
+}
+
+const mainMenuCopy: Record<BotLocale, {greeting: string; findService: string; offerServices: string; cabinet: string; help: string; language: string}> = {
+  'es-AR': {
+    greeting: '¡Hola! 👋\n\nBuenServ te ayuda a encontrar servicios locales confiables en Buenos Aires.\n\n¿Qué querés hacer?',
+    findService: '🔎 Buscar un servicio',
+    offerServices: '🧰 Ofrecer mis servicios',
+    cabinet: '👤 Mi gabinete',
+    help: '💬 Ayuda',
+    language: '🌐 Idioma'
+  },
+  ru: {
+    greeting: 'Привет! 👋\n\nBuenServ помогает найти надёжных местных исполнителей в Буэнос-Айресе.\n\nЧто вы хотите сделать?',
+    findService: '🔎 Найти услугу',
+    offerServices: '🧰 Предлагать услуги',
+    cabinet: '👤 Мой кабинет',
+    help: '💬 Помощь',
+    language: '🌐 Язык'
+  },
+  en: {
+    greeting: 'Hello! 👋\n\nBuenServ helps you find trusted local services in Buenos Aires.\n\nWhat would you like to do?',
+    findService: '🔎 Find a service',
+    offerServices: '🧰 Offer my services',
+    cabinet: '👤 My cabinet',
+    help: '💬 Help',
+    language: '🌐 Language'
+  }
+};
+
+// Site catalog uses `es`/`ru`/`en` path segments; the bot's es-AR locale maps to `es`.
+function catalogLocalePath(locale: BotLocale) {
+  return locale === 'es-AR' ? 'es' : locale;
+}
+
+function mainMenuKeyboard(env: ServerEnv, locale: BotLocale) {
+  const t = mainMenuCopy[locale];
+  const catalogUrl = `${env.NEXT_PUBLIC_APP_URL}/${catalogLocalePath(locale)}/providers`;
+  const onboardingUrl = `${env.NEXT_PUBLIC_APP_URL}/mini-app/onboarding`;
+  const cabinetUrl = `${env.NEXT_PUBLIC_APP_URL}/mini-app`;
+  return {
+    inline_keyboard: [
+      [{text: t.findService, url: catalogUrl}],
+      [{text: t.offerServices, web_app: {url: onboardingUrl}}],
+      [{text: t.cabinet, web_app: {url: cabinetUrl}}],
+      [{text: t.help, callback_data: 'support'}, {text: t.language, callback_data: 'lang_menu'}]
+    ]
+  };
+}
+
+/** Testable, pure accessor for the main-menu copy (greeting + button labels) per locale. */
+export function mainMenuText(locale: BotLocale) {
+  return mainMenuCopy[locale];
+}
+export async function sendMainMenu(env: ServerEnv, chatId: number, locale: BotLocale) {
+  const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: 'POST', headers: {'content-type': 'application/json'},
+    body: JSON.stringify({chat_id: chatId, text: mainMenuCopy[locale].greeting, reply_markup: mainMenuKeyboard(env, locale)})
+  });
+  if (!response.ok) throw new Error(`Telegram sendMainMenu failed: ${response.status}`);
+}
+
+/** Redraw an existing message as the localized main menu — used after a language pick so
+ *  the user lands on the home screen directly instead of a "Language set." confirmation. */
+export async function editToMainMenu(env: ServerEnv, chatId: number, messageId: number, locale: BotLocale) {
+  const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/editMessageText`, {
+    method: 'POST', headers: {'content-type': 'application/json'},
+    body: JSON.stringify({chat_id: chatId, message_id: messageId, text: mainMenuCopy[locale].greeting, reply_markup: mainMenuKeyboard(env, locale)})
+  });
+  if (!response.ok) throw new Error(`Telegram editToMainMenu failed: ${response.status}`);
+}
+
+/** Redraw an existing message as the language sub-menu (behind the "🌐 Language" button). */
+export async function editToLanguageMenu(env: ServerEnv, chatId: number, messageId: number) {
+  const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/editMessageText`, {
+    method: 'POST', headers: {'content-type': 'application/json'},
+    body: JSON.stringify({chat_id: chatId, message_id: messageId, text: 'Elegí un idioma / Выберите язык / Choose a language', reply_markup: languageKeyboard()})
+  });
+  if (!response.ok) throw new Error(`Telegram editToLanguageMenu failed: ${response.status}`);
+}
+
+/** Resolve BotLocale from a raw Telegram language_code, used only for brand-new profiles.
+ *  Once a profile exists, its saved `profiles.locale` is the source of truth — see the
+ *  webhook handler, which only calls this when no existing profile locale was found. */
+export function detectLocaleFromTelegram(languageCode?: string): BotLocale {
+  if (languageCode?.startsWith('ru')) return 'ru';
+  if (languageCode?.startsWith('en')) return 'en';
+  return 'es-AR';
 }
 
 export function parseArsPrice(value: string) {

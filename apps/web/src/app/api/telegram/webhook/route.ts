@@ -2,15 +2,14 @@ import {timingSafeEqual} from 'node:crypto';
 import {NextRequest, NextResponse} from 'next/server';
 import {createAdminClient} from '@/lib/supabase/admin';
 import {getServerEnv} from '@/lib/env';
-import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, parseReportReason, rateLimitCopyKey, sendTelegramMessage, sendTelegramKeyboard, removeTelegramKeyboard, sendTelegramMiniApp, categoryKeyboard, barrioKeyboard, type BotLocale, type OnboardingStep} from '@/lib/telegram/provider-onboarding';
+import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, parseReportReason, rateLimitCopyKey, sendTelegramMessage, sendTelegramKeyboard, removeTelegramKeyboard, sendTelegramMiniApp, sendMainMenu, editToMainMenu, editToLanguageMenu, detectLocaleFromTelegram, categoryKeyboard, barrioKeyboard, type BotLocale, type OnboardingStep} from '@/lib/telegram/provider-onboarding';
 import {performerProviderId, reportProviderId, startPayload, startsProviderOnboarding, startsSupport} from '@/lib/telegram/start-payload';
 
 type TelegramUser = {id: number; first_name?: string; last_name?: string; language_code?: string};
-type TelegramMessage = {text?: string; photo?: Array<{file_id: string}>; chat?: {id: number}; from?: TelegramUser};
+type TelegramMessage = {message_id?: number; text?: string; photo?: Array<{file_id: string}>; chat?: {id: number}; from?: TelegramUser};
 type TelegramUpdate = {update_id: number; message?: TelegramMessage; callback_query?: {id: string; data?: string; from: TelegramUser; message?: TelegramMessage}};
 type Draft = {category_slug?: string; barrio_slug?: string; description?: string; price_from_ars?: number; telegram_photo_file_id?: string};
 
-function normalizeLocale(language?: string): BotLocale { if (language?.startsWith('ru')) return 'ru'; if (language?.startsWith('en')) return 'en'; return 'es-AR'; }
 function secretsMatch(received: string | null, expected: string) { if (!received) return false; const left = Buffer.from(received); const right = Buffer.from(expected); return left.length === right.length && timingSafeEqual(left, right); }
 
 async function submitProvider(supabase: ReturnType<typeof createAdminClient>, profileId: string, telegramId: number, name: string, draft: Draft) {
@@ -47,20 +46,37 @@ export async function POST(request: NextRequest) {
     if (insertError) return NextResponse.json({error: 'Temporary error'}, {status: 500});
   }
   const markProcessed = () => supabase.from('telegram_updates').update({processed_at: new Date().toISOString()}).eq('update_id', update.update_id);
-  const locale = normalizeLocale(user.language_code); const displayName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'BuenServ user';
+  const displayName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'BuenServ user';
+
+  // Saved profiles.locale is the source of truth once it exists (the user made an explicit
+  // choice, or a prior message already derived and persisted a default). Telegram's
+  // language_code is only used to seed a sensible default for a brand-new profile.
+  const {data: existingProfile} = await supabase.from('profiles').select('locale').eq('telegram_user_id', user.id).maybeSingle();
+  const locale = (existingProfile?.locale as BotLocale | undefined) ?? detectLocaleFromTelegram(user.language_code);
+
   const {data: profile, error: profileError} = await supabase.from('profiles').upsert({telegram_user_id: user.id, display_name: displayName, locale}, {onConflict: 'telegram_user_id'}).select('id').single();
   if (profileError || !profile) return NextResponse.json({error: 'Temporary error'}, {status: 500});
 
   if (callback?.data) {
     const callbackData = callback.data;
-    if (callbackData.startsWith('lang_')) {
-      const selected = callbackData.slice(5);
-      const selectedLocale: BotLocale = selected === 'ru' ? 'ru' : selected === 'en' ? 'en' : 'es-AR';
-      await supabase.from('profiles').update({locale: selectedLocale}).eq('id', profile.id);
-      await sendTelegramMessage(env, chatId, selectedLocale === 'ru' ? 'Язык установлен.' : selectedLocale === 'en' ? 'Language set.' : 'Idioma configurado.');
-    } else if (callbackData === 'support') {
-      await supabase.from('telegram_support_sessions').upsert({profile_id: profile.id}, {onConflict: 'profile_id'});
-      await sendTelegramMessage(env, chatId, onboardingText(locale, 'support'));
+    const callbackMessageId = callback.message?.message_id;
+    try {
+      if (callbackData === 'lang_menu' && callbackMessageId) {
+        await editToLanguageMenu(env, chatId, callbackMessageId);
+      } else if (callbackData.startsWith('lang_')) {
+        const selected = callbackData.slice(5);
+        const selectedLocale: BotLocale = selected === 'ru' ? 'ru' : selected === 'en' ? 'en' : 'es-AR';
+        await supabase.from('profiles').update({locale: selectedLocale}).eq('id', profile.id);
+        if (callbackMessageId) await editToMainMenu(env, chatId, callbackMessageId, selectedLocale);
+        else await sendMainMenu(env, chatId, selectedLocale);
+      } else if (callbackData === 'support') {
+        await supabase.from('telegram_support_sessions').upsert({profile_id: profile.id}, {onConflict: 'profile_id'});
+        await sendTelegramMessage(env, chatId, onboardingText(locale, 'support'));
+      }
+    } catch {
+      // Telegram returns 400 "message is not modified" when the edited text/markup is
+      // identical to the current message (e.g. re-tapping the already-selected language) —
+      // harmless, nothing left to do for this callback.
     }
     await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({callback_query_id: callback.id})});
     await markProcessed();
@@ -71,21 +87,9 @@ export async function POST(request: NextRequest) {
   const payload = startPayload(msgText);
   if (payload) await supabase.from('telegram_start_events').insert({update_id: update.update_id, profile_id: profile.id, payload});
 
-  // Welcome / start — Mini App button + language selection
+  // Welcome / start — localized main menu (find a service, offer services, cabinet, help, language).
   if (/^\/start$/i.test(msgText)) {
-    const miniAppUrl = `${env.NEXT_PUBLIC_APP_URL}/mini-app`;
-    const welcome = `👋 <b>BuenServ</b>\n\n🇪🇸 Servicios locales de confianza en Buenos Aires.\n🇷🇺 Надёжные местные услуги в Буэнос-Айресе.\n🇬🇧 Trusted local services in Buenos Aires.\n\n👇 Open your cabinet to explore or track requests.`;
-    const menu = {
-      inline_keyboard: [
-        [{text: '🚀 Open Mini App', web_app: {url: miniAppUrl}}],
-        [{text: '🇪🇸 Español', callback_data: 'lang_es-AR'}, {text: '🇷🇺 Русский', callback_data: 'lang_ru'}],
-        [{text: '🇬🇧 English', callback_data: 'lang_en'}, {text: '💬 Support', callback_data: 'support'}]
-      ]
-    };
-    await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: 'POST', headers: {'content-type': 'application/json'},
-      body: JSON.stringify({chat_id: chatId, text: welcome, parse_mode: 'HTML', reply_markup: menu})
-    });
+    await sendMainMenu(env, chatId, locale);
     await markProcessed(); return NextResponse.json({ok: true});
   }
 
