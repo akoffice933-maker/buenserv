@@ -501,7 +501,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ok: true});
     }
 
-    // Text commands
+    // Text commands — only reachable when there's no callback (handled above)
+    if (!message) { await markProcessed(); return NextResponse.json({ok: true}); }
     const text = message.text?.trim() ?? '';
     const parts = text.split(/\s+/);
     const cmd = parts[0]?.toLowerCase() ?? '';
