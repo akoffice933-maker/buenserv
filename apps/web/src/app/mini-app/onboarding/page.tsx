@@ -1,7 +1,6 @@
 'use client';
 
 import {useEffect, useState} from 'react';
-import {retrieveLaunchParams, postEvent} from '@telegram-apps/sdk';
 
 type Lang = 'es' | 'ru' | 'en';
 
@@ -14,10 +13,10 @@ const I18N = {
     barrio: '¿En qué barrio trabajás?',
     description: 'Contanos sobre tu experiencia',
     price: 'Precio orientativo en ARS',
-    photo: 'Foto de perfil en Telegram',
+    photo: 'Subí una foto de perfil',
     confirm: 'Confirmá tus datos',
     submitted: '✅ ¡Enviado!',
-    submittedDesc: 'Tu perfil está en moderación.',
+    submittedDesc: 'Tu perfil está en moderación. Enviá tu foto en el chat de Telegram.',
     cat: ['Limpieza', 'Reparaciones', 'Mascotas', 'Mudanzas', 'Clases', 'Mensajería', 'Taxi'],
     bar: ['Palermo', 'Recoleta', 'Belgrano', 'Caballito'],
     descPH: 'Contanos sobre tu experiencia (mín. 20 caracteres)',
@@ -26,7 +25,7 @@ const I18N = {
     errBar: 'Elegí un barrio',
     errDesc: 'Mínimo 20 caracteres',
     errPrice: 'Precio inválido',
-        next: 'Siguiente',
+    next: 'Siguiente',
     back: 'Atrás',
     submit: 'Enviar',
     sending: 'Enviando...',
@@ -39,10 +38,10 @@ const I18N = {
     barrio: 'В каком районе работаете?',
     description: 'Расскажите о своём опыте',
     price: 'Цена в ARS',
-    photo: 'Фото профиля в Telegram',
+    photo: 'Загрузите фото профиля',
     confirm: 'Подтвердите данные',
     submitted: '✅ Отправлено!',
-    submittedDesc: 'Ваш профиль на модерации.',
+    submittedDesc: 'Ваш профиль на модерации. Отправьте фото в чат Telegram.',
     cat: ['Уборка', 'Ремонт', 'Питомцы', 'Переезды', 'Занятия', 'Курьеры', 'Такси'],
     bar: ['Палермо', 'Реколета', 'Бельграно', 'Кабальито'],
     descPH: 'Расскажите об опыте (мин. 20 символов)',
@@ -51,7 +50,7 @@ const I18N = {
     errBar: 'Выберите район',
     errDesc: 'Минимум 20 символов',
     errPrice: 'Некорректная цена',
-        next: 'Далее',
+    next: 'Далее',
     back: 'Назад',
     submit: 'Отправить',
     sending: 'Отправка...',
@@ -64,10 +63,10 @@ const I18N = {
     barrio: 'Which neighbourhood?',
     description: 'Tell us about your experience',
     price: 'Price in ARS',
-    photo: 'Profile photo in Telegram',
+    photo: 'Upload a profile photo',
     confirm: 'Confirm your details',
     submitted: '✅ Submitted!',
-    submittedDesc: 'Your profile is pending moderation.',
+    submittedDesc: 'Your profile is pending moderation. Send your photo in the Telegram chat.',
     cat: ['Cleaning', 'Repairs', 'Pets', 'Moving', 'Lessons', 'Delivery', 'Taxi'],
     bar: ['Palermo', 'Recoleta', 'Belgrano', 'Caballito'],
     descPH: 'Tell us about your experience (min 20 chars)',
@@ -76,7 +75,7 @@ const I18N = {
     errBar: 'Select a barrio',
     errDesc: 'Minimum 20 characters',
     errPrice: 'Invalid price',
-        next: 'Next',
+    next: 'Next',
     back: 'Back',
     submit: 'Submit',
     sending: 'Sending...',
@@ -107,7 +106,13 @@ export default function OnboardingPage() {
   const t = I18N[lang];
 
   useEffect(() => {
-    try { const lp = retrieveLaunchParams(); if (lp?.tgWebAppData) { setInitData(String(lp.tgWebAppData)); postEvent('web_app_expand'); } } catch {}
+    try {
+      const w = window as unknown as {Telegram?: {WebApp?: {initData?: string; expand?: () => void; close?: () => void}}};
+      if (w.Telegram?.WebApp?.initData) {
+        setInitData(w.Telegram.WebApp.initData);
+        w.Telegram.WebApp.expand?.();
+      }
+    } catch {}
     setStarted(true);
   }, []);
 
@@ -139,7 +144,7 @@ export default function OnboardingPage() {
       const res = await fetch('/api/mini-app/submit', {method: 'POST', body: fd});
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? t.error);
-      try { postEvent('web_app_close'); } catch {}
+      try { (window as unknown as {Telegram?: {WebApp?: {close?: () => void}}}).Telegram?.WebApp?.close?.(); } catch {}
       setStep('done');
     } catch (err) { setError(err instanceof Error ? err.message : t.error); }
     finally { setSubmitting(false); }
