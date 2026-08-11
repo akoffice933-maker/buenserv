@@ -13,14 +13,16 @@ const I18N = {
     barrio: '¿En qué barrio trabajás?',
     description: 'Contanos sobre tu experiencia',
     price: 'Precio orientativo en ARS',
-    photo: 'Subí una foto de perfil',
+    photo: 'Foto de perfil en Telegram',
+    photoDesc: 'Después de enviar, mandá tu foto en el chat del bot.',
     confirm: 'Confirmá tus datos',
     submitted: '✅ ¡Enviado!',
-    submittedDesc: 'Tu perfil está en moderación. Enviá tu foto en el chat de Telegram.',
-    cat: ['Limpieza', 'Reparaciones', 'Mascotas', 'Mudanzas', 'Clases', 'Mensajería', 'Taxi'],
+    submittedDesc: 'Tu perfil está en moderación. Ahora envianos tu foto en el chat de Telegram.',
+    cat: ['🧹 Limpieza', '🔧 Reparaciones', '🐾 Mascotas', '🚚 Mudanzas', '📚 Clases', '🛵 Mensajería', '🚕 Taxi y traslados'],
     bar: ['Palermo', 'Recoleta', 'Belgrano', 'Caballito'],
     descPH: 'Contanos sobre tu experiencia (mín. 20 caracteres)',
     pricePH: 'Ej: 18000',
+    priceNote: 'El precio final se acuerda directamente con el cliente.',
     errCat: 'Elegí una categoría',
     errBar: 'Elegí un barrio',
     errDesc: 'Mínimo 20 caracteres',
@@ -31,6 +33,11 @@ const I18N = {
     sending: 'Enviando...',
     error: 'Error al enviar',
     lang: 'Idioma',
+    // Confirm step labels
+    lblCat: 'Categoría',
+    lblBar: 'Barrio',
+    lblDesc: 'Descripción',
+    lblPrice: 'Precio',
   },
   ru: {
     title: 'Регистрация исполнителя',
@@ -38,14 +45,16 @@ const I18N = {
     barrio: 'В каком районе работаете?',
     description: 'Расскажите о своём опыте',
     price: 'Цена в ARS',
-    photo: 'Загрузите фото профиля',
+    photo: 'Фото профиля в Telegram',
+    photoDesc: 'После отправки анкеты пришлите фотографию в чат с ботом.',
     confirm: 'Подтвердите данные',
     submitted: '✅ Отправлено!',
-    submittedDesc: 'Ваш профиль на модерации. Отправьте фото в чат Telegram.',
-    cat: ['Уборка', 'Ремонт', 'Питомцы', 'Переезды', 'Занятия', 'Курьеры', 'Такси'],
+    submittedDesc: 'Ваш профиль на модерации. Теперь отправьте фото в чат Telegram.',
+    cat: ['🧹 Уборка', '🔧 Ремонт', '🐾 Питомцы', '🚚 Переезды', '📚 Занятия', '🛵 Курьеры', '🚕 Такси'],
     bar: ['Палермо', 'Реколета', 'Бельграно', 'Кабальито'],
     descPH: 'Расскажите об опыте (мин. 20 символов)',
     pricePH: 'Пример: 18000',
+    priceNote: 'Окончательная цена обсуждается напрямую с клиентом.',
     errCat: 'Выберите категорию',
     errBar: 'Выберите район',
     errDesc: 'Минимум 20 символов',
@@ -56,6 +65,10 @@ const I18N = {
     sending: 'Отправка...',
     error: 'Ошибка отправки',
     lang: 'Язык',
+    lblCat: 'Категория',
+    lblBar: 'Район',
+    lblDesc: 'Описание',
+    lblPrice: 'Цена',
   },
   en: {
     title: 'Register as provider',
@@ -63,14 +76,16 @@ const I18N = {
     barrio: 'Which neighbourhood?',
     description: 'Tell us about your experience',
     price: 'Price in ARS',
-    photo: 'Upload a profile photo',
+    photo: 'Profile photo in Telegram',
+    photoDesc: 'After submitting, send your photo in the bot chat.',
     confirm: 'Confirm your details',
     submitted: '✅ Submitted!',
-    submittedDesc: 'Your profile is pending moderation. Send your photo in the Telegram chat.',
-    cat: ['Cleaning', 'Repairs', 'Pets', 'Moving', 'Lessons', 'Delivery', 'Taxi'],
+    submittedDesc: 'Your profile is pending moderation. Now send us your photo in the Telegram chat.',
+    cat: ['🧹 Cleaning', '🔧 Repairs', '🐾 Pets', '🚚 Moving', '📚 Lessons', '🛵 Delivery', '🚕 Taxi'],
     bar: ['Palermo', 'Recoleta', 'Belgrano', 'Caballito'],
     descPH: 'Tell us about your experience (min 20 chars)',
     pricePH: 'e.g. 18000',
+    priceNote: 'Final price is agreed directly with the client.',
     errCat: 'Select a category',
     errBar: 'Select a barrio',
     errDesc: 'Minimum 20 characters',
@@ -81,6 +96,10 @@ const I18N = {
     sending: 'Sending...',
     error: 'Submission failed',
     lang: 'Language',
+    lblCat: 'Category',
+    lblBar: 'Neighbourhood',
+    lblDesc: 'Description',
+    lblPrice: 'Price',
   }
 };
 
@@ -125,40 +144,19 @@ export default function OnboardingPage() {
   const [barrio, setBarrio] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [initData, setInitData] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [started, setStarted] = useState(false);
   const [showLang, setShowLang] = useState(false);
-  const [debugInfo, setDebugInfo] = useState('');
 
   const t = I18N[lang];
 
   useEffect(() => {
-    const info: string[] = [];
+    // Expand the Mini App to full screen
     try {
-      const w = window as unknown as {Telegram?: {WebApp?: {initData?: string; expand?: () => void; close?: () => void}}};
-      const hasWebApp = !!w.Telegram?.WebApp;
-      info.push(`Telegram.WebApp: ${hasWebApp}`);
-      if (hasWebApp) {
-        info.push(`initData length: ${(w.Telegram!.WebApp!.initData || '').length}`);
-      }
-    } catch (e) { info.push(`WebApp error: ${e}`); }
-
-    const data = getTelegramInitData();
-    info.push(`getTelegramInitData() length: ${data.length}`);
-    if (data) {
-      setInitData(data);
-      info.push(`initData preview: ${data.slice(0, 80)}...`);
-      // Expand the Mini App to full screen
-      try {
-        const w = window as unknown as {Telegram?: {WebApp?: {expand?: () => void}}};
-        w.Telegram?.WebApp?.expand?.();
-      } catch { /* ignore */ }
-    } else {
-      info.push('WARNING: initData is EMPTY — Mini App may not be running inside Telegram');
-    }
-    setDebugInfo(info.join(' | '));
+      const w = window as unknown as {Telegram?: {WebApp?: {expand?: () => void}}};
+      w.Telegram?.WebApp?.expand?.();
+    } catch { /* ignore */ }
     setStarted(true);
   }, []);
 
@@ -227,13 +225,6 @@ export default function OnboardingPage() {
 
   return (
     <div style={s}>
-      {/* Debug info — visible only when initData is missing or there's a Telegram issue */}
-      {debugInfo && (
-        <details style={{fontSize: 10, color: 'var(--tg-theme-hint-color, #999)', marginBottom: 4, opacity: 0.7}}>
-          <summary style={{cursor: 'pointer'}}>🔍 Debug</summary>
-          <pre style={{whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: '4px 0'}}>{debugInfo}</pre>
-        </details>
-      )}
       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
         <div style={{flex: 1, height: 4, background: 'var(--tg-theme-secondary-bg-color, #eee)', borderRadius: 2, overflow: 'hidden'}}>
           <div style={{width: `${progress}%`, height: '100%', background: 'var(--tg-theme-button-color, #2481cc)', transition: 'width 0.3s'}} />
@@ -274,18 +265,22 @@ export default function OnboardingPage() {
       )}
 
       {step === 'price' && (
-        <input value={price} onChange={e => setPrice(e.target.value)} placeholder={t.pricePH} type="number"
-          style={{padding: 14, border: '1px solid var(--tg-theme-secondary-bg-color, #ddd)', borderRadius: 12, background: 'var(--tg-theme-secondary-bg-color, #f5f5f5)', color: 'var(--tg-theme-text-color, #000)', fontSize: 16}} />
+        <div>
+          <input value={price} onChange={e => setPrice(e.target.value)} placeholder={t.pricePH} type="number"
+            style={{padding: 14, border: '1px solid var(--tg-theme-secondary-bg-color, #ddd)', borderRadius: 12, background: 'var(--tg-theme-secondary-bg-color, #f5f5f5)', color: 'var(--tg-theme-text-color, #000)', fontSize: 16, width: '100%', boxSizing: 'border-box'}} />
+          <p style={{fontSize: 12, color: 'var(--tg-theme-hint-color, #999)', margin: '6px 0 0'}}>{t.priceNote}</p>
+        </div>
       )}
 
       {step === 'confirm' && (
         <div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
-          {[['Categoría', t.cat[CATEGORIES.indexOf(category)]], ['Barrio', t.bar[BARRIOS.indexOf(barrio)]], ['Description', description.slice(0, 60) + '...'], ['Price', `$${price} ARS`]].map(([k, v]) => (
+          {[[t.lblCat, t.cat[CATEGORIES.indexOf(category)]], [t.lblBar, t.bar[BARRIOS.indexOf(barrio)]], [t.lblDesc, description.slice(0, 60) + '...'], [t.lblPrice, `$${Number(price).toLocaleString()} ARS`]].map(([k, v]) => (
             <div key={k} style={{padding: 12, border: '1px solid var(--tg-theme-secondary-bg-color, #ddd)', borderRadius: 12, background: 'var(--tg-theme-secondary-bg-color, #f5f5f5)'}}>
               <p style={{margin: 0, fontSize: 12, color: 'var(--tg-theme-hint-color, #999)'}}>{k}</p>
               <p style={{margin: '4px 0 0', fontSize: 16}}>{v}</p>
             </div>
           ))}
+          <p style={{fontSize: 12, color: 'var(--tg-theme-hint-color, #999)', margin: 0}}>{t.photoDesc}</p>
         </div>
       )}
 
@@ -293,7 +288,12 @@ export default function OnboardingPage() {
 
       <div style={{display: 'flex', gap: 8, marginTop: 'auto'}}>
         {step !== 'category' && step !== 'confirm' && (btn(t.back, back))}
-        {step === 'confirm' ? (btn(t.submit, submit, true)) : (step !== 'category' && step !== 'barrio' ? (btn(t.next, next, true)) : null)}
+        {step === 'confirm' ? (
+          <button onClick={submit} disabled={submitting}
+            style={{flex: 1, padding: 14, borderRadius: 12, border: 'none', background: submitting ? 'var(--tg-theme-secondary-bg-color, #ccc)' : 'var(--tg-theme-button-color, #2481cc)', color: submitting ? 'var(--tg-theme-hint-color, #999)' : 'var(--tg-theme-button-text-color, #fff)', fontSize: 16, cursor: submitting ? 'default' : 'pointer'}}>
+            {submitting ? t.sending : t.submit}
+          </button>
+        ) : (step !== 'category' && step !== 'barrio' ? (btn(t.next, next, true)) : null)}
       </div>
     </div>
   );

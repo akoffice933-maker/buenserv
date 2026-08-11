@@ -8,6 +8,13 @@ export async function GET(request: NextRequest) {
     if (!identity) return NextResponse.json({error: 'Mini App profile not found'}, {status: 404});
 
     const supabase = createAdminClient();
+    const {data: profileLocale, error: profileLocaleError} = await supabase
+      .from('profiles')
+      .select('locale')
+      .eq('id', identity.profileId)
+      .maybeSingle();
+    if (profileLocaleError) throw profileLocaleError;
+
     const {data: provider, error: providerError} = await supabase
       .from('providers')
       .select('id, slug, status')
@@ -32,7 +39,7 @@ export async function GET(request: NextRequest) {
     if (providerLeads.error) throw providerLeads.error;
 
     return NextResponse.json({
-      profile: {id: identity.profileId, firstName: identity.telegramUser.first_name ?? ''},
+      profile: {id: identity.profileId, firstName: identity.telegramUser.first_name ?? '', locale: profileLocale?.locale ?? 'es-AR'},
       provider,
       customerLeads: customerLeads.data ?? [],
       providerLeads: providerLeads.data ?? []
