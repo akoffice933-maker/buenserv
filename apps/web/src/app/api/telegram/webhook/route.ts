@@ -123,35 +123,83 @@ export async function POST(request: NextRequest) {
       .eq('id', performerId)
       .eq('status', 'approved')
       .maybeSingle();
-    if (targetProvider) {
-      const cats = targetProvider.provider_categories as unknown as Array<{category_id: string}> | undefined;
-      const barrios = targetProvider.provider_barrios as unknown as Array<{barrio_id: string}> | undefined;
-      const categoryId = cats?.[0]?.category_id;
-      const barrioId = barrios?.[0]?.barrio_id;
-      if (categoryId && barrioId) {
-        await supabase.rpc('create_lead', {
-          p_customer_profile_id: profile.id,
-          p_provider_id: targetProvider.id,
-          p_category_id: categoryId,
-          p_barrio_id: barrioId,
-          p_source: 'telegram',
-          p_source_detail: 'performer_contact',
-          p_external_source: 'telegram_webhook',
-          p_external_id: `performer_${update.update_id}`,
-          p_metadata: {channel: 'telegram_bot', action: 'contact'}
-        });
-        const contactSent = locale === 'ru' ? '✅ Ваш запрос отправлен исполнителю. Он скоро ответит.' : locale === 'en' ? '✅ Your request has been sent to the provider. They will reply soon.' : '✅ Tu solicitud fue enviada al prestador. Te responderá pronto.';
-        await sendTelegramMessage(env, chatId, contactSent);
-      } else {
-        const noService = locale === 'ru' ? 'Извините, у этого исполнителя пока нет доступных услуг.' : locale === 'en' ? 'Sorry, this provider has no available services yet.' : 'Lo sentimos, este prestador aún no tiene servicios disponibles.';
-        await sendTelegramMessage(env, chatId, noService);
-      }
-    } else {
+    if (!targetProvider) {
       const notFound = locale === 'ru' ? 'Исполнитель не найден.' : locale === 'en' ? 'Provider not found.' : 'Prestador no encontrado.';
       await sendTelegramMessage(env, chatId, notFound);
+      await markProcessed();
+      return NextResponse.json({ok: true});
     }
+    // TODO: Let customer choose category/barrio in Mini App contact form.
+    // Using first relation row as a temporary default until contact Mini App is built.
+    const cats = targetProvider.provider_categories as unknown as Array<{category_id: string}> | undefined;
+    const barrios = targetProvider.provider_barrios as unknown as Array<{barrio_id: string}> | undefined;
+    const categoryId = cats?.[0]?.category_id;
+    const barrioId = barrios?.[0]?.barrio_id;
+    if (!categoryId || !barrioId) {
+      const noService = locale === 'ru' ? 'Извините, у этого исполнителя пока нет доступных услуг.' : locale === 'en' ? 'Sorry, this provider has no available services yet.' : 'Lo sentimos, este prestador aún no tiene servicios disponibles.';
+      await sendTelegramMessage(env, chatId, noService);
+      await markProcessed();
+      return NextResponse.json({ok: true});
+    }
+    // Step 1: create_lead with idempotency key from update_id
+    const {data: leadId, error: leadError} = await supabase.rpc('create_lead', {
+      p_customer_profile_id: profile.id,
+      p_provider_id: targetProvider.id,
+      p_category_id: categoryId,
+      p_barrio_id: barrioId,
+      p_source: 'telegram',
+      p_source_detail: 'performer_contact',
+      p_external_source: 'telegram_webhook',
+      p_external_id: `telegram_webhook:${update.update_id}:lead`,
+      p_metadata: {channel: 'telegram_bot', action: 'contact'}
+    }) as {data: string | null; error: unknown};
+    if (leadError || !leadId) {
+      const serverError = locale === 'ru' ? 'Временная ошибка. Попробуйте позже.' : locale === 'en' ? 'Temporary error. Please try again.' : 'Error temporal. Intente de nuevo.';
+      await sendTelegramMessage(env, chatId, serverError);
+      await markProcessed();
+      return NextResponse.json({error: 'create_lead failed'}, {status: 500});
+    }
+    // Step 2: customer_contacted → updates lead status to 'contacted'
+    const {error: contactedError} = await supabase.rpc('record_lead_event', {
+      p_lead_id: leadId,
+      p_event_type: 'customer_contacted',
+      p_actor_type: 'customer',
+      p_actor_profile_id: profile.id,
+      p_external_source: 'telegram_webhook',
+      p_external_id: `telegram_webhook:${update.update_id}:customer_contacted`,
+      p_metadata: {channel: 'telegram_bot'}
+    });
+    if (contactedError) {
+      // Lead exists but lifecycle couldn't advance — still notify customer
+      const partial = locale === 'ru' ? 'Запрос получен, но пока не обработан.' : locale === 'en' ? 'Request received but not yet processed.' : 'Solicitud recibida pero aún no procesada.';
+      await sendTelegramMessage(env, chatId, partial);
+      await markProcessed();
+      return NextResponse.json({error: 'customer_contacted failed'}, {status: 500});
+    }
+    // Step 3: provider_notified → creates notification_outbox record automatically
+    // Actor is 'system' because the automated contact flow notifies the provider,
+    // not the customer directly.
+    const {error: notifiedError} = await supabase.rpc('record_lead_event', {
+      p_lead_id: leadId,
+      p_event_type: 'provider_notified',
+      p_actor_type: 'system',
+      p_actor_profile_id: profile.id,
+      p_external_source: 'telegram_webhook',
+      p_external_id: `telegram_webhook:${update.update_id}:provider_notified`,
+      p_metadata: {channel: 'telegram_bot'}
+    });
+    if (notifiedError) {
+      // Lead + contacted exist, notification deferred — tell customer lead is active
+      const deferred = locale === 'ru' ? '✅ Запрос отправлен. Исполнитель получит уведомление.' : locale === 'en' ? '✅ Request sent. The provider will be notified.' : '✅ Solicitud enviada. El prestador recibirá notificación.';
+      await sendTelegramMessage(env, chatId, deferred);
+      await markProcessed();
+      return NextResponse.json({ok: true, leadId, warning: 'provider_notified deferred'});
+    }
+    // All three RPCs succeeded — full lifecycle transition
+    const contactSent = locale === 'ru' ? '✅ Ваш запрос отправлен исполнителю. Он скоро ответит.' : locale === 'en' ? '✅ Your request has been sent to the provider. They will reply soon.' : '✅ Tu solicitud fue enviada al prestador. Te responderá pronto.';
+    await sendTelegramMessage(env, chatId, contactSent);
     await markProcessed();
-    return NextResponse.json({ok: true});
+    return NextResponse.json({ok: true, leadId});
   }
 
   const {data: supportSession} = await supabase.from('telegram_support_sessions').select('profile_id').eq('profile_id', profile.id).maybeSingle();
