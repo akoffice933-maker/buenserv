@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
   if (performerId) {
     const {data: targetProvider} = await supabase
       .from('providers')
-      .select('id, profile_id, provider_categories(category_id), provider_barrios(barrio_id)')
+      .select('id, profile_id, provider_categories!provider_categories_provider_id_fkey(category_id), provider_barrios!provider_barrios_provider_id_fkey(barrio_id)')
       .eq('id', performerId)
       .eq('status', 'approved')
       .maybeSingle();
@@ -131,6 +131,7 @@ export async function POST(request: NextRequest) {
     }
     // TODO: Let customer choose category/barrio in Mini App contact form.
     // Using first relation row as a temporary default until contact Mini App is built.
+    // This is a pilot fallback — for open launch, customer must select service context.
     const cats = targetProvider.provider_categories as unknown as Array<{category_id: string}> | undefined;
     const barrios = targetProvider.provider_barrios as unknown as Array<{barrio_id: string}> | undefined;
     const categoryId = cats?.[0]?.category_id;
@@ -176,24 +177,26 @@ export async function POST(request: NextRequest) {
       await markProcessed();
       return NextResponse.json({error: 'customer_contacted failed'}, {status: 500});
     }
-    // Step 3: provider_notified → creates notification_outbox record automatically
+    // Step 3: provider_notified → creates notification_outbox record automatically.
     // Actor is 'system' because the automated contact flow notifies the provider,
-    // not the customer directly.
+    // not the customer directly. No actor_profile_id for system actions.
     const {error: notifiedError} = await supabase.rpc('record_lead_event', {
       p_lead_id: leadId,
       p_event_type: 'provider_notified',
       p_actor_type: 'system',
-      p_actor_profile_id: profile.id,
+      p_actor_profile_id: null,
       p_external_source: 'telegram_webhook',
       p_external_id: `telegram_webhook:${update.update_id}:provider_notified`,
       p_metadata: {channel: 'telegram_bot'}
     });
     if (notifiedError) {
-      // Lead + contacted exist, notification deferred — tell customer lead is active
-      const deferred = locale === 'ru' ? '✅ Запрос отправлен. Исполнитель получит уведомление.' : locale === 'en' ? '✅ Request sent. The provider will be notified.' : '✅ Solicitud enviada. El prestador recibirá notificación.';
-      await sendTelegramMessage(env, chatId, deferred);
-      await markProcessed();
-      return NextResponse.json({ok: true, leadId, warning: 'provider_notified deferred'});
+      // Lead + contacted exist but outbox wasn't created.
+      // Do NOT markProcessed — return 500 so Telegram retries the same update.
+      // Idempotency keys ensure create_lead and customer_contacted return
+      // previous results, and only provider_notified will be retried.
+      const honest = locale === 'ru' ? 'Запрос сохранён, но не удалось уведомить исполнителя. Повторите попытку.' : locale === 'en' ? 'Request saved, but could not notify the provider. Please try again.' : 'Solicitud guardada, pero no se pudo notificar al prestador. Intente de nuevo.';
+      await sendTelegramMessage(env, chatId, honest);
+      return NextResponse.json({error: 'provider_notified failed', leadId}, {status: 500});
     }
     // All three RPCs succeeded — full lifecycle transition
     const contactSent = locale === 'ru' ? '✅ Ваш запрос отправлен исполнителю. Он скоро ответит.' : locale === 'en' ? '✅ Your request has been sent to the provider. They will reply soon.' : '✅ Tu solicitud fue enviada al prestador. Te responderá pronto.';
