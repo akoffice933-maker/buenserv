@@ -518,6 +518,11 @@ export async function POST(request: NextRequest) {
       case '/approve': case '/reject': {
         const providerId = parts[1];
         const rejecting = cmd === '/reject';
+        const requiredAction = rejecting ? 'reject_provider' : 'approve_provider';
+        if (!isActionAllowed(admin.role, requiredAction)) {
+          await sendAdminMessage(adminToken, chatId, '⛔ Недостаточно прав.');
+          break;
+        }
         const reason = parts.slice(2).join(' ');
         if (!providerId || (rejecting && !reason)) {
           await sendAdminMessage(adminToken, chatId, rejecting ? 'Usage: /reject <provider-id> <reason>' : 'Usage: /approve <provider-id>');
@@ -533,14 +538,17 @@ export async function POST(request: NextRequest) {
         break;
       }
       case '/reports': {
+        if (!isActionAllowed(admin.role, 'resolve_report')) { await sendAdminMessage(adminToken, chatId, '⛔ Недостаточно прав.'); break; }
         await showReports(supabase, adminToken, chatId);
         break;
       }
       case '/support': {
+        if (!isActionAllowed(admin.role, 'take_support')) { await sendAdminMessage(adminToken, chatId, '⛔ Недостаточно прав.'); break; }
         await showSupport(supabase, adminToken, chatId);
         break;
       }
       case '/leads': {
+        if (!isActionAllowed(admin.role, 'lead_operations')) { await sendAdminMessage(adminToken, chatId, '⛔ Недостаточно прав.'); break; }
         await showLeads(supabase, adminToken, chatId);
         break;
       }
