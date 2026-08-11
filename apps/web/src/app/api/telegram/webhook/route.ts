@@ -155,9 +155,8 @@ export async function POST(request: NextRequest) {
       p_metadata: {channel: 'telegram_bot', action: 'contact'}
     }) as {data: string | null; error: unknown};
     if (leadError || !leadId) {
-      const serverError = locale === 'ru' ? 'Временная ошибка. Попробуйте позже.' : locale === 'en' ? 'Temporary error. Please try again.' : 'Error temporal. Intente de nuevo.';
-      await sendTelegramMessage(env, chatId, serverError);
-      await markProcessed();
+      // No markProcessed, no user message — return 500 so Telegram retries.
+      // Idempotency key prevents duplicate leads on retry.
       return NextResponse.json({error: 'create_lead failed'}, {status: 500});
     }
     // Step 2: customer_contacted → updates lead status to 'contacted'
@@ -171,11 +170,10 @@ export async function POST(request: NextRequest) {
       p_metadata: {channel: 'telegram_bot'}
     });
     if (contactedError) {
-      // Lead exists but lifecycle couldn't advance — still notify customer
-      const partial = locale === 'ru' ? 'Запрос получен, но пока не обработан.' : locale === 'en' ? 'Request received but not yet processed.' : 'Solicitud recibida pero aún no procesada.';
-      await sendTelegramMessage(env, chatId, partial);
-      await markProcessed();
-      return NextResponse.json({error: 'customer_contacted failed'}, {status: 500});
+      // Lead exists but lifecycle couldn't advance.
+      // No markProcessed, no user message — return 500 for Telegram retry.
+      // Idempotency key prevents duplicate customer_contacted on retry.
+      return NextResponse.json({error: 'customer_contacted failed', leadId}, {status: 500});
     }
     // Step 3: provider_notified → creates notification_outbox record automatically.
     // Actor is 'system' because the automated contact flow notifies the provider,
@@ -191,11 +189,9 @@ export async function POST(request: NextRequest) {
     });
     if (notifiedError) {
       // Lead + contacted exist but outbox wasn't created.
-      // Do NOT markProcessed — return 500 so Telegram retries the same update.
+      // No markProcessed, no user message — return 500 for Telegram retry.
       // Idempotency keys ensure create_lead and customer_contacted return
-      // previous results, and only provider_notified will be retried.
-      const honest = locale === 'ru' ? 'Запрос сохранён, но не удалось уведомить исполнителя. Повторите попытку.' : locale === 'en' ? 'Request saved, but could not notify the provider. Please try again.' : 'Solicitud guardada, pero no se pudo notificar al prestador. Intente de nuevo.';
-      await sendTelegramMessage(env, chatId, honest);
+      // previous results; only provider_notified is retried.
       return NextResponse.json({error: 'provider_notified failed', leadId}, {status: 500});
     }
     // All three RPCs succeeded — full lifecycle transition
