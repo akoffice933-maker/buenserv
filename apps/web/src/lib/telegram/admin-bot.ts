@@ -4,6 +4,25 @@ import type {SupabaseClient} from '@supabase/supabase-js';
 
 export type AdminRole = 'admin' | 'moderator' | 'support';
 
+/** Per-action RBAC matrix. Never allow an action unless the role is listed. */
+export const ACTION_ROLES: Record<string, AdminRole[]> = {
+  approve_provider: ['admin', 'moderator'],
+  reject_provider: ['admin', 'moderator'],
+  request_revision: ['admin', 'moderator'],
+  resolve_report: ['admin', 'moderator'],
+  suspend_provider: ['admin'],
+  take_support: ['admin', 'moderator', 'support'],
+  close_support: ['admin', 'moderator', 'support'],
+  retry_outbox: ['admin'],
+  lead_operations: ['admin', 'moderator'],
+};
+
+export function isActionAllowed(role: AdminRole, actionType: string): boolean {
+  const allowed = ACTION_ROLES[actionType];
+  if (!allowed) return false;
+  return allowed.includes(role);
+}
+
 export type InlineButton = {text: string; callback_data?: string; url?: string};
 export type InlineKeyboard = InlineButton[][];
 
@@ -90,40 +109,40 @@ export async function issueActionToken(
   return token;
 }
 
-/** Consume and validate an action token. Returns null if invalid/expired/consumed. */
+/** Consume and validate an action token atomically via SQL RPC. Returns null if invalid/expired/consumed. */
 export async function consumeActionToken(
   supabase: SupabaseClient,
   token: string,
   profileId: string,
   expectedAction?: string
 ): Promise<{actionType: string; entityType: string; entityId: string; payload: Record<string, unknown>} | null> {
-  const {data: row} = await supabase
-    .from('admin_action_tokens')
-    .select('*')
-    .eq('token', token)
-    .maybeSingle();
+  // Atomic consume in SQL — SELECT FOR UPDATE prevents concurrent double-consume.
+  const {data, error} = await supabase.rpc('consume_admin_action_token', {
+    p_token: token,
+    p_profile_id: profileId
+  }) as unknown as {data: Array<{action_type: string; entity_type: string; entity_id: string; payload: Record<string, unknown>}> | null; error: {message: string} | null};
+  if (error) {
+    // Token already consumed, expired, or not for this profile — treat as unavailable.
+    return null;
+  }
+  const row = data?.[0];
   if (!row) return null;
-  if (row.consumed_at) return null;
-  if (new Date(row.expires_at).getTime() < Date.now()) return null;
-  if (row.issued_for_profile_id !== profileId) return null;
   if (expectedAction && row.action_type !== expectedAction) return null;
-
-  const {error: consumeError} = await supabase
-    .from('admin_action_tokens')
-    .update({consumed_at: new Date().toISOString()})
-    .eq('token', token);
-  if (consumeError) throw consumeError;
-
   return {
     actionType: row.action_type,
     entityType: row.entity_type,
     entityId: row.entity_id,
-    payload: (row.payload ?? {}) as Record<string, unknown>
+    payload: row.payload ?? {}
   };
 }
 
 export function escapeHtml(text: string): string {
-  return text.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+  return text
+    .replace(/&/g, '&')
+    .replace(/</g, '<')
+    .replace(/>/g, '>')
+    .replace(/"/g, '"')
+    .replace(/'/g, '&#039;');
 }
 
 export type AdminEnv = Pick<ServerEnv, 'TELEGRAM_ADMIN_BOT_TOKEN' | 'TELEGRAM_ADMIN_WEBHOOK_SECRET'>;

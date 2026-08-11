@@ -5,7 +5,8 @@ import {getServerEnv} from '@/lib/env';
 import {
   sendAdminMessage, editAdminMessage, answerCallbackQuery, requireAdminRole,
   issueActionToken, consumeActionToken, setAdminPanelState, fetchAdminSummary,
-  escapeHtml, type AdminRole, type AdminIdentity, type InlineKeyboard
+  escapeHtml, isActionAllowed,
+  type AdminRole, type AdminIdentity, type InlineKeyboard
 } from '@/lib/telegram/admin-bot';
 
 type AdminUpdate = {
@@ -248,6 +249,15 @@ async function handleCallback(
   const action = parts[1];
 
   try {
+    // RBAC guard: map callback action to required action type before any mutation.
+    const rbacGuard = (required: string): boolean => {
+      if (!isActionAllowed(admin.role, required)) {
+        void editAdminMessage(token, chatId, messageId, '⛔ Недостаточно прав для этого действия.', [[{text: '← Панель', callback_data: 'adm:panel'}]]);
+        return false;
+      }
+      return true;
+    };
+
     switch (action) {
       case 'panel': {
         const text = await buildPanelMessage(supabase);
@@ -274,6 +284,7 @@ async function handleCallback(
         break;
       }
       case 'approve': {
+        if (!rbacGuard('approve_provider')) break;
         const providerId = parts.slice(2).join(':');
         const actionToken = await issueActionToken(supabase, admin.profileId, 'approve_provider', 'provider', providerId);
         const text = `Подтвердить одобрение?\n\n<b>${providerId.slice(0, 8)}...</b>\n\nЭто действие нельзя отменить.`;
@@ -285,6 +296,7 @@ async function handleCallback(
         break;
       }
       case 'reject': {
+        if (!rbacGuard('reject_provider')) break;
         const providerId = parts.slice(2).join(':');
         const actionToken = await issueActionToken(supabase, admin.profileId, 'reject_provider', 'provider', providerId);
         const text = `Подтвердить отклонение?\n\n<b>${providerId.slice(0, 8)}...</b>`;
@@ -296,6 +308,7 @@ async function handleCallback(
         break;
       }
       case 'revision': {
+        if (!rbacGuard('request_revision')) break;
         const providerId = parts.slice(2).join(':');
         const actionToken = await issueActionToken(supabase, admin.profileId, 'request_revision', 'provider', providerId);
         const text = `Отправить на доработку?\n\n<b>${providerId.slice(0, 8)}...</b>\n\nИсполнитель получит уведомление с просьбой исправить профиль.`;
@@ -353,19 +366,28 @@ async function handleCallback(
         break;
       }
       case 'resolve_report': {
+        if (!rbacGuard('resolve_report')) break;
         const reportId = parts.slice(2).join(':');
-        const {error: resolveError} = await supabase.from('reports').update({status: 'resolved', updated_at: new Date().toISOString()}).eq('id', reportId).eq('status', 'open');
-        if (resolveError) throw resolveError;
-        await editAdminMessage(token, chatId, messageId, '✅ Жалоба закрыта.', [[{text: '🚩 Следующая', callback_data: 'adm:reports'}, {text: '← Панель', callback_data: 'adm:panel'}]]);
+        const {error: resolveError} = await supabase.rpc('admin_resolve_report', {p_actor_profile_id: admin.profileId, p_report_id: reportId});
+        if (resolveError) {
+          await editAdminMessage(token, chatId, messageId, `❌ Ошибка при закрытии жалобы.`, [[{text: '← Панель', callback_data: 'adm:panel'}]]);
+        } else {
+          await editAdminMessage(token, chatId, messageId, '✅ Жалоба закрыта.', [[{text: '🚩 Следующая', callback_data: 'adm:reports'}, {text: '← Панель', callback_data: 'adm:panel'}]]);
+        }
         break;
       }
       case 'suspend_report': {
+        if (!rbacGuard('suspend_provider')) break;
         const reportId = parts.slice(2).join(':');
         const {data: report} = await supabase.from('reports').select('provider_id').eq('id', reportId).single();
         if (report?.provider_id) {
-          await supabase.rpc('moderate_provider', {p_actor_profile_id: admin.profileId, p_provider_id: report.provider_id, p_decision: 'suspended', p_reason: 'Приостановлен по жалобе'});
-          await supabase.from('reports').update({status: 'resolved', updated_at: new Date().toISOString()}).eq('id', reportId);
-          await editAdminMessage(token, chatId, messageId, '⛔ Исполнитель приостановлен. Жалоба закрыта.', [[{text: '🚩 Следующая', callback_data: 'adm:reports'}, {text: '← Панель', callback_data: 'adm:panel'}]]);
+          const {error: suspendError} = await supabase.rpc('admin_suspend_provider', {p_actor_profile_id: admin.profileId, p_provider_id: report.provider_id, p_reason: 'Приостановлен по жалобе'});
+          if (suspendError) {
+            await editAdminMessage(token, chatId, messageId, `❌ Не удалось приостановить исполнителя.`, [[{text: '← Панель', callback_data: 'adm:panel'}]]);
+          } else {
+            await supabase.rpc('admin_resolve_report', {p_actor_profile_id: admin.profileId, p_report_id: reportId});
+            await editAdminMessage(token, chatId, messageId, '⛔ Исполнитель приостановлен. Жалоба закрыта.', [[{text: '🚩 Следующая', callback_data: 'adm:reports'}, {text: '← Панель', callback_data: 'adm:panel'}]]);
+          }
         }
         break;
       }
@@ -379,15 +401,25 @@ async function handleCallback(
         break;
       }
       case 'take_support': {
+        if (!rbacGuard('take_support')) break;
         const requestId = parts.slice(2).join(':');
-        await supabase.from('support_requests').update({status: 'in_progress', updated_at: new Date().toISOString()}).eq('id', requestId).eq('status', 'open');
-        await editAdminMessage(token, chatId, messageId, '🙋 Обращение взято в работу.', [[{text: '💬 Следующее', callback_data: 'adm:support'}, {text: '← Панель', callback_data: 'adm:panel'}]]);
+        const {error: takeError} = await supabase.rpc('admin_take_support_request', {p_actor_profile_id: admin.profileId, p_request_id: requestId});
+        if (takeError) {
+          await editAdminMessage(token, chatId, messageId, '❌ Не удалось взять обращение.', [[{text: '← Панель', callback_data: 'adm:panel'}]]);
+        } else {
+          await editAdminMessage(token, chatId, messageId, '🙋 Обращение взято в работу.', [[{text: '💬 Следующее', callback_data: 'adm:support'}, {text: '← Панель', callback_data: 'adm:panel'}]]);
+        }
         break;
       }
       case 'close_support': {
+        if (!rbacGuard('close_support')) break;
         const requestId = parts.slice(2).join(':');
-        await supabase.from('support_requests').update({status: 'resolved', updated_at: new Date().toISOString()}).eq('id', requestId).eq('status', 'open');
-        await editAdminMessage(token, chatId, messageId, '✅ Обращение закрыто.', [[{text: '💬 Следующее', callback_data: 'adm:support'}, {text: '← Панель', callback_data: 'adm:panel'}]]);
+        const {error: closeError} = await supabase.rpc('admin_resolve_support_request', {p_actor_profile_id: admin.profileId, p_request_id: requestId});
+        if (closeError) {
+          await editAdminMessage(token, chatId, messageId, '❌ Не удалось закрыть обращение.', [[{text: '← Панель', callback_data: 'adm:panel'}]]);
+        } else {
+          await editAdminMessage(token, chatId, messageId, '✅ Обращение закрыто.', [[{text: '💬 Следующее', callback_data: 'adm:support'}, {text: '← Панель', callback_data: 'adm:panel'}]]);
+        }
         break;
       }
       case 'support_next': {
@@ -395,13 +427,19 @@ async function handleCallback(
         break;
       }
       case 'leads': {
+        if (!rbacGuard('lead_operations')) break;
         await setAdminPanelState(supabase, admin.profileId, 'leads');
         await showLeads(supabase, token, chatId, messageId);
         break;
       }
       case 'retry_outbox': {
-        await supabase.from('notification_outbox').update({status: 'pending', locked_at: null, next_attempt_at: new Date().toISOString()}).eq('status', 'permanently_failed');
-        await editAdminMessage(token, chatId, messageId, '🔄 Failed outbox задачи возвращены в очередь.', [[{text: '📋 Заявки', callback_data: 'adm:leads'}, {text: '← Панель', callback_data: 'adm:panel'}]]);
+        if (!rbacGuard('retry_outbox')) break;
+        const {data: retryCount, error: retryError} = await supabase.rpc('admin_retry_notification_outbox', {p_actor_profile_id: admin.profileId});
+        if (retryError) {
+          await editAdminMessage(token, chatId, messageId, '❌ Не удалось повторить outbox.', [[{text: '← Панель', callback_data: 'adm:panel'}]]);
+        } else {
+          await editAdminMessage(token, chatId, messageId, `🔄 ${retryCount ?? 0} задач возвращены в очередь.`, [[{text: '📋 Заявки', callback_data: 'adm:leads'}, {text: '← Панель', callback_data: 'adm:panel'}]]);
+        }
         break;
       }
       case 'summary': {
@@ -411,9 +449,9 @@ async function handleCallback(
       default:
         await answerCallbackQuery(token, callbackId, 'Неизвестная команда');
     }
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    await editAdminMessage(token, chatId, messageId, `❌ Ошибка: ${escapeHtml(msg)}`, [[{text: '← Панель', callback_data: 'adm:panel'}]]);
+  } catch (_error) {
+    // Never expose internal details to admin or HTTP response
+    await editAdminMessage(token, chatId, messageId, '❌ Не удалось выполнить действие. Попробуйте позже.', [[{text: '← Панель', callback_data: 'adm:panel'}]]);
   }
 }
 
@@ -516,8 +554,8 @@ export async function POST(request: NextRequest) {
 
     await markProcessed();
     return NextResponse.json({ok: true});
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({error: msg}, {status: 500});
+  } catch (_error) {
+    // Never expose internal RPC/schema details to the caller
+    return NextResponse.json({error: 'Temporary error'}, {status: 500});
   }
 }
