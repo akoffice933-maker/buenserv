@@ -66,42 +66,16 @@ export async function requireAdminRole(
   supabase: SupabaseClient,
   telegramId: number
 ): Promise<AdminIdentity | null> {
-  // Upsert profile on first interaction — ensures the profile always exists
+  // Read-only — never upsert or create profiles here. The main webhook handles that.
   const {data: profile} = await supabase
     .from('profiles')
-    .upsert({
-      telegram_user_id: telegramId,
-      display_name: 'Admin',
-      locale: 'es-AR'
-    }, {onConflict: 'telegram_user_id', ignoreDuplicates: false})
     .select('id,role')
-    .single();
+    .eq('telegram_user_id', telegramId)
+    .maybeSingle();
 
   if (!profile) return null;
   const role = profile.role;
-
-  // If role is not set, try to set it to admin (first admin auto-promotion)
-  if (!role || !['admin', 'moderator', 'support'].includes(role)) {
-    // Check if this is the first admin ever — auto-promote
-    const {count: adminCount} = await supabase
-      .from('profiles')
-      .select('*', {count: 'exact', head: true})
-      .in('role', ['admin', 'moderator']);
-
-    if (adminCount === 0) {
-      const {data: updated} = await supabase
-        .from('profiles')
-        .update({role: 'admin'})
-        .eq('id', profile.id)
-        .select('id,role')
-        .single();
-      if (updated?.role === 'admin') {
-        return {profileId: updated.id, role: 'admin' as AdminRole};
-      }
-    }
-    return null;
-  }
-
+  if (!['admin', 'moderator', 'support'].includes(role)) return null;
   return {profileId: profile.id, role: role as AdminRole};
 }
 
