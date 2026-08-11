@@ -32,8 +32,9 @@ export async function POST(request: NextRequest) {
   if (!secretsMatch(request.headers.get('x-telegram-bot-api-secret-token'), env.TELEGRAM_WEBHOOK_SECRET)) return NextResponse.json({error: 'Unauthorized'}, {status: 401});
   let update: TelegramUpdate; try { update = await request.json() as TelegramUpdate; } catch { return NextResponse.json({error: 'Invalid JSON'}, {status: 400}); }
   const callback = update.callback_query;
-  const message = update.message ?? callback?.message;
-  const user = message?.from ?? callback?.from;
+  const message = callback?.message ?? update.message;
+  // For callback queries, the real user is callback.from, not message.from (which is the bot).
+  const user = callback?.from ?? message?.from;
   const chatId = message?.chat?.id;
   if (!user || !chatId) return NextResponse.json({ok: true});
   const supabase = createAdminClient();

@@ -470,8 +470,9 @@ export async function POST(request: NextRequest) {
 
     const callback = update.callback_query;
     const message = update.message ?? callback?.message;
-    const user = message?.from ?? callback?.from;
-    const chatId = message?.chat?.id;
+    // For callback queries, the real user is callback.from, not message.from (which is the bot).
+    const user = callback?.from ?? message?.from;
+    const chatId = callback?.message?.chat?.id ?? message?.chat?.id;
     if (!user || !chatId) return NextResponse.json({ok: true});
 
     const supabase = createAdminClient();
