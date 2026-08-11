@@ -90,6 +90,34 @@ const BARRIOS = ['palermo', 'recoleta', 'belgrano', 'caballito'];
 type Step = 'category' | 'barrio' | 'description' | 'price' | 'confirm' | 'done';
 const STEPS: Step[] = ['category', 'barrio', 'description', 'price', 'confirm', 'done'];
 
+/** Try multiple strategies to extract Telegram init data from the page. */
+function getTelegramInitData(): string {
+  // 1) Standard Telegram WebApp API (injected by Telegram's webview)
+  try {
+    const w = window as unknown as {Telegram?: {WebApp?: {initData?: string}}};
+    if (w.Telegram?.WebApp?.initData) return w.Telegram.WebApp.initData;
+  } catch { /* ignore */ }
+
+  // 2) URL hash fragment — Telegram passes init data as #tgWebAppData=...
+  try {
+    const hash = window.location.hash;
+    if (hash) {
+      const hashParams = new URLSearchParams(hash.replace(/^#/, ''));
+      const tgWebAppData = hashParams.get('tgWebAppData');
+      if (tgWebAppData) return tgWebAppData;
+    }
+  } catch { /* ignore */ }
+
+  // 3) URL search params (some Telegram clients / test environments)
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tgWebAppData = urlParams.get('tgWebAppData');
+    if (tgWebAppData) return tgWebAppData;
+  } catch { /* ignore */ }
+
+  return '';
+}
+
 export default function OnboardingPage() {
   const [lang, setLang] = useState<Lang>('es');
   const [step, setStep] = useState<Step>('category');
@@ -102,17 +130,35 @@ export default function OnboardingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [started, setStarted] = useState(false);
   const [showLang, setShowLang] = useState(false);
+  const [debugInfo, setDebugInfo] = useState('');
 
   const t = I18N[lang];
 
   useEffect(() => {
+    const info: string[] = [];
     try {
       const w = window as unknown as {Telegram?: {WebApp?: {initData?: string; expand?: () => void; close?: () => void}}};
-      if (w.Telegram?.WebApp?.initData) {
-        setInitData(w.Telegram.WebApp.initData);
-        w.Telegram.WebApp.expand?.();
+      const hasWebApp = !!w.Telegram?.WebApp;
+      info.push(`Telegram.WebApp: ${hasWebApp}`);
+      if (hasWebApp) {
+        info.push(`initData length: ${(w.Telegram!.WebApp!.initData || '').length}`);
       }
-    } catch {}
+    } catch (e) { info.push(`WebApp error: ${e}`); }
+
+    const data = getTelegramInitData();
+    info.push(`getTelegramInitData() length: ${data.length}`);
+    if (data) {
+      setInitData(data);
+      info.push(`initData preview: ${data.slice(0, 80)}...`);
+      // Expand the Mini App to full screen
+      try {
+        const w = window as unknown as {Telegram?: {WebApp?: {expand?: () => void}}};
+        w.Telegram?.WebApp?.expand?.();
+      } catch { /* ignore */ }
+    } else {
+      info.push('WARNING: initData is EMPTY — Mini App may not be running inside Telegram');
+    }
+    setDebugInfo(info.join(' | '));
     setStarted(true);
   }, []);
 
@@ -144,7 +190,8 @@ export default function OnboardingPage() {
       const res = await fetch('/api/mini-app/submit', {method: 'POST', body: fd});
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? t.error);
-      try { (window as unknown as {Telegram?: {WebApp?: {close?: () => void}}}).Telegram?.WebApp?.close?.(); } catch {}
+      // Close Mini App via raw Telegram WebApp API (no SDK dependency)
+      try { (window as unknown as {Telegram?: {WebApp?: {close?: () => void}}}).Telegram?.WebApp?.close?.(); } catch { /* ignore */ }
       setStep('done');
     } catch (err) { setError(err instanceof Error ? err.message : t.error); }
     finally { setSubmitting(false); }
@@ -173,6 +220,13 @@ export default function OnboardingPage() {
 
   return (
     <div style={s}>
+      {/* Debug info — visible only when initData is missing or there's a Telegram issue */}
+      {debugInfo && (
+        <details style={{fontSize: 10, color: 'var(--tg-theme-hint-color, #999)', marginBottom: 4, opacity: 0.7}}>
+          <summary style={{cursor: 'pointer'}}>🔍 Debug</summary>
+          <pre style={{whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: '4px 0'}}>{debugInfo}</pre>
+        </details>
+      )}
       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
         <div style={{flex: 1, height: 4, background: 'var(--tg-theme-secondary-bg-color, #eee)', borderRadius: 2, overflow: 'hidden'}}>
           <div style={{width: `${progress}%`, height: '100%', background: 'var(--tg-theme-button-color, #2481cc)', transition: 'width 0.3s'}} />
