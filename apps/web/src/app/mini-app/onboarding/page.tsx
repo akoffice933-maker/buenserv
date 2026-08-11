@@ -181,12 +181,19 @@ export default function OnboardingPage() {
   const submit = async () => {
     setSubmitting(true); setError('');
     try {
+      // Capture initData at submission time — more reliable than relying on state
+      const currentInitData = getTelegramInitData();
+      if (!currentInitData) {
+        setError(`${t.error}: initData is empty. Open this page from Telegram bot.`);
+        setSubmitting(false);
+        return;
+      }
       const fd = new FormData();
       fd.append('category', category);
       fd.append('barrio', barrio);
       fd.append('description', description);
       fd.append('price', price);
-      fd.append('initData', initData);
+      fd.append('initData', currentInitData);
       const res = await fetch('/api/mini-app/submit', {method: 'POST', body: fd});
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? t.error);

@@ -3,7 +3,7 @@ import {NextRequest, NextResponse} from 'next/server';
 import {createAdminClient} from '@/lib/supabase/admin';
 import {getServerEnv} from '@/lib/env';
 import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, parseReportReason, rateLimitCopyKey, sendTelegramMessage, sendTelegramKeyboard, removeTelegramKeyboard, sendTelegramMiniApp, categoryKeyboard, barrioKeyboard, type BotLocale, type OnboardingStep} from '@/lib/telegram/provider-onboarding';
-import {reportProviderId, startPayload, startsProviderOnboarding, startsSupport} from '@/lib/telegram/start-payload';
+import {performerProviderId, reportProviderId, startPayload, startsProviderOnboarding, startsSupport} from '@/lib/telegram/start-payload';
 
 type TelegramUser = {id: number; first_name?: string; last_name?: string; language_code?: string};
 type TelegramMessage = {text?: string; photo?: Array<{file_id: string}>; chat?: {id: number}; from?: TelegramUser};
@@ -110,6 +110,46 @@ export async function POST(request: NextRequest) {
     await supabase.from('provider_onboarding_sessions').upsert({profile_id: profile.id, step: 'category', draft: {}}, {onConflict: 'profile_id'});
     const miniAppUrl = `${env.NEXT_PUBLIC_APP_URL}/mini-app/onboarding`;
     await sendTelegramMiniApp(env, chatId, onboardingText(locale, 'welcome'), miniAppUrl);
+    await markProcessed();
+    return NextResponse.json({ok: true});
+  }
+
+  // Customer clicks "Contact" on a provider's profile page → creates a lead
+  const performerId = performerProviderId(message.text);
+  if (performerId) {
+    const {data: targetProvider} = await supabase
+      .from('providers')
+      .select('id, profile_id, provider_categories(category_id), provider_barrios(barrio_id)')
+      .eq('id', performerId)
+      .eq('status', 'approved')
+      .maybeSingle();
+    if (targetProvider) {
+      const cats = targetProvider.provider_categories as unknown as Array<{category_id: string}> | undefined;
+      const barrios = targetProvider.provider_barrios as unknown as Array<{barrio_id: string}> | undefined;
+      const categoryId = cats?.[0]?.category_id;
+      const barrioId = barrios?.[0]?.barrio_id;
+      if (categoryId && barrioId) {
+        await supabase.rpc('create_lead', {
+          p_customer_profile_id: profile.id,
+          p_provider_id: targetProvider.id,
+          p_category_id: categoryId,
+          p_barrio_id: barrioId,
+          p_source: 'telegram',
+          p_source_detail: 'performer_contact',
+          p_external_source: 'telegram_webhook',
+          p_external_id: `performer_${update.update_id}`,
+          p_metadata: {channel: 'telegram_bot', action: 'contact'}
+        });
+        const contactSent = locale === 'ru' ? '✅ Ваш запрос отправлен исполнителю. Он скоро ответит.' : locale === 'en' ? '✅ Your request has been sent to the provider. They will reply soon.' : '✅ Tu solicitud fue enviada al prestador. Te responderá pronto.';
+        await sendTelegramMessage(env, chatId, contactSent);
+      } else {
+        const noService = locale === 'ru' ? 'Извините, у этого исполнителя пока нет доступных услуг.' : locale === 'en' ? 'Sorry, this provider has no available services yet.' : 'Lo sentimos, este prestador aún no tiene servicios disponibles.';
+        await sendTelegramMessage(env, chatId, noService);
+      }
+    } else {
+      const notFound = locale === 'ru' ? 'Исполнитель не найден.' : locale === 'en' ? 'Provider not found.' : 'Prestador no encontrado.';
+      await sendTelegramMessage(env, chatId, notFound);
+    }
     await markProcessed();
     return NextResponse.json({ok: true});
   }

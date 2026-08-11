@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {reportProviderId, startPayload, startsProviderOnboarding, startsSupport} from './start-payload';
+import {performerProviderId, reportProviderId, startPayload, startsProviderOnboarding, startsSupport} from './start-payload';
 
 const id = '550e8400-e29b-41d4-a716-446655440000';
 
@@ -17,5 +17,8 @@ describe('Telegram start payload parsing', () => {
     expect(startsSupport('/start support')).toBe(true);
     expect(reportProviderId(`/start report_${id}`)).toBe(id);
     expect(reportProviderId('/start report_invalid')).toBeNull();
+    expect(performerProviderId(`/start performer_${id}`)).toBe(id);
+    expect(performerProviderId('/start performer_invalid')).toBeNull();
+    expect(performerProviderId('/start provider')).toBeNull();
   });
 });
