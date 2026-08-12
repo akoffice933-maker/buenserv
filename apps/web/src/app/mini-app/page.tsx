@@ -1,6 +1,7 @@
 'use client';
 
 import {useEffect, useState} from 'react';
+import {useRouter} from 'next/navigation';
 
 type Lang = 'es' | 'ru' | 'en';
 
@@ -24,7 +25,7 @@ const I18N: Record<Lang, {
     becomeProviderDesc: 'Registrate como prestador desde el bot.',
     incomingRequests: 'Solicitudes recibidas', myRequests: 'Mis solicitudes',
     empty: 'Todavía no hay solicitudes.', openRequest: 'Abrir solicitud', cancelRequest: 'Cancelar solicitud',
-    noSession: 'Abrí tu gabinete desde el bot de BuenServ.', sessionExpired: 'Сессия истекла. Откройте кабинет заново из BuenServ bot.', loadError: 'No pudimos cargar tu gabinete.', loading: 'Cargando…',
+    noSession: 'Abrí tu gabinete desde el bot de BuenServ.', sessionExpired: 'La sesión venció. Abrí tu gabinete nuevamente desde el bot de BuenServ.', loadError: 'No pudimos cargar tu gabinete.', loading: 'Cargando…',
     providerStatus: {draft: 'Borrador', pending: 'En moderación', approved: 'Aprobado', rejected: 'Necesita cambios', suspended: 'Suspendido'},
     leadStatus: {created: 'Creada', contacted: 'Enviada', provider_replied: 'Respondida', success: 'Finalizada', no_response: 'Sin respuesta', cancelled: 'Cancelada'}
   },
@@ -32,7 +33,7 @@ const I18N: Record<Lang, {
     greeting: 'Привет', providerProfile: 'Мой профиль', becomeProvider: 'Предлагаете услуги?',
     becomeProviderDesc: 'Зарегистрируйтесь как исполнитель через бота.',
     incomingRequests: 'Входящие заявки', myRequests: 'Мои заявки',
-    empty: 'Пока нет заявок.', openRequest: 'Открыть заявку', cancelRequest: 'Отменить заявку',
+    empty: 'Пока нет заявок.', openRequest: 'Посмотреть заявку', cancelRequest: 'Отменить заявку',
     noSession: 'Откройте кабинет из бота BuenServ.', sessionExpired: 'Сессия истекла. Откройте кабинет заново из BuenServ bot.', loadError: 'Не удалось загрузить кабинет.', loading: 'Загрузка…',
     providerStatus: {draft: 'Черновик', pending: 'На модерации', approved: 'Одобрен', rejected: 'Нужны правки', suspended: 'Приостановлен'},
     leadStatus: {created: 'Создана', contacted: 'Отправлена', provider_replied: 'Ответили', success: 'Завершена', no_response: 'Нет ответа', cancelled: 'Отменена'}
@@ -96,6 +97,7 @@ function LeadList({title, leads, lang, action, actionLabel, actionStatuses, i18n
 }
 
 export default function MiniAppDashboardPage() {
+  const router = useRouter();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [error, setError] = useState('');
   const [lang, setLang] = useState<Lang>('es');
@@ -127,7 +129,7 @@ export default function MiniAppDashboardPage() {
       .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : I18N[lang].loadError));
   }, [lang]);
 
-  const submitAction = async (lead: Lead, action: 'provider_opened' | 'cancelled') => {
+  const submitAction = async (lead: Lead, action: 'cancelled') => {
     try {
       const initData = getTelegramInitData();
       if (!initData) { setError(I18N[lang].noSession); return; }
@@ -145,6 +147,10 @@ export default function MiniAppDashboardPage() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : I18N[lang].loadError); }
   };
 
+  const viewLeadDetail = (lead: Lead) => {
+    router.push(`/mini-app/leads/${lead.id}`);
+  };
+
   const t = I18N[lang];
   const shell: React.CSSProperties = {minHeight: '100vh', padding: 16, display: 'grid', gap: 16, background: 'var(--tg-theme-bg-color, #fff)', color: 'var(--tg-theme-text-color, #111)'};
   if (error) return <main style={shell}><h1 style={{fontSize: 22, margin: 0}}>BuenServ</h1><p>{error}</p></main>;
@@ -155,7 +161,7 @@ export default function MiniAppDashboardPage() {
     {dashboard.provider ? <section style={{padding: 14, borderRadius: 12, border: '1px solid var(--tg-theme-secondary-bg-color, #ddd)'}}>
       <strong>{t.providerProfile}</strong><p style={{margin: '6px 0 0'}}>{t.providerStatus[dashboard.provider.status] ?? dashboard.provider.status}</p>
     </section> : <section style={{padding: 14, borderRadius: 12, border: '1px solid var(--tg-theme-secondary-bg-color, #ddd)'}}><strong>{t.becomeProvider}</strong><p style={{margin: '6px 0 0'}}>{t.becomeProviderDesc}</p></section>}
-    {dashboard.provider && <LeadList title={t.incomingRequests} leads={dashboard.providerLeads} lang={lang} action={(lead) => submitAction(lead, 'provider_opened')} actionLabel={t.openRequest} actionStatuses={['contacted']} i18n={{leadStatus: t.leadStatus, empty: t.empty}} />}
+    {dashboard.provider && <LeadList title={t.incomingRequests} leads={dashboard.providerLeads} lang={lang} action={viewLeadDetail} actionLabel={t.openRequest} actionStatuses={['contacted']} i18n={{leadStatus: t.leadStatus, empty: t.empty}} />}
     <LeadList title={t.myRequests} leads={dashboard.customerLeads} lang={lang} action={(lead) => submitAction(lead, 'cancelled')} actionLabel={t.cancelRequest} actionStatuses={['created', 'contacted', 'provider_replied']} i18n={{leadStatus: t.leadStatus, empty: t.empty}} />
   </main>;
 }

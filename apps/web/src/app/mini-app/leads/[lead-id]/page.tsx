@@ -75,7 +75,7 @@ const I18N: Record<Lang, {
     openRequest: 'Abrir solicitud',
     cancelRequest: 'Cancelar solicitud',
     noSession: 'Abrí tu gabinete desde el bot de BuenServ.',
-    sessionExpired: 'Сессия истекла. Откройте кабинет заново из BuenServ bot.',
+    sessionExpired: 'La sesión venció. Abrí tu gabinete nuevamente desde el bot de BuenServ.',
     loadError: 'No pudimos cargar tu gabinete.',
     loading: 'Cargando…',
     providerStatus: {draft: 'Borrador', pending: 'En moderación', approved: 'Aprobado', rejected: 'Necesita cambios', suspended: 'Suspendido'},
