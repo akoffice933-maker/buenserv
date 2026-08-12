@@ -15,9 +15,19 @@ const rpc = async (name, body) => {
   return response.json();
 };
 
-const copy = (type, leadId) => type === 'provider_lead_notification'
-  ? `🔔 Tenés una nueva solicitud en BuenServ. Abrí tu gabinete para verla.\n\n${process.env.NEXT_PUBLIC_APP_URL}/mini-app`
-  : `💬 Un prestador respondió a tu solicitud en BuenServ. Abrí tu gabinete para continuar.\n\n${process.env.NEXT_PUBLIC_APP_URL}/mini-app`;
+const copy = (type, leadId) => ({
+  text: type === 'provider_lead_notification'
+    ? '🔔 Tenés una nueva solicitud en BuenServ. Tocá el botón para abrir tu gabinete.'
+    : '💬 Un prestador respondió a tu solicitud en BuenServ. Tocá el botón para continuar.',
+  reply_markup: {
+    inline_keyboard: [[
+      {
+        text: 'Abrí tu gabinete',
+        web_app: {url: `${process.env.NEXT_PUBLIC_APP_URL}/mini-app`}
+      }
+    ]]
+  }
+});
 
 const batch = await rpc('claim_notification_outbox', {p_limit: Number(process.env.NOTIFICATION_OUTBOX_BATCH_SIZE ?? 20)});
 let sent = 0;
@@ -26,14 +36,19 @@ for (const item of batch) {
     if (!item.telegram_user_id) throw new Error('recipient_has_no_telegram_user_id');
     const response = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: 'POST', headers: {'content-type': 'application/json'},
-      body: JSON.stringify({chat_id: item.telegram_user_id, text: copy(item.notification_type, item.payload?.lead_id)})
+      body: JSON.stringify({chat_id: item.telegram_user_id, ...copy(item.notification_type, item.payload?.lead_id)})
     });
     const body = await response.json();
     if (!response.ok || !body.ok) throw new Error(`telegram_delivery_failed:${response.status}`);
     await rpc('complete_notification_outbox', {p_id: item.id, p_telegram_message_id: body.result.message_id});
     sent += 1;
   } catch (error) {
-    await rpc('fail_notification_outbox', {p_id: item.id, p_error: error instanceof Error ? error.message : 'unknown_delivery_error'});
+    try {
+      await rpc('fail_notification_outbox', {p_id: item.id, p_error: error instanceof Error ? error.message : 'unknown_delivery_error'});
+    } catch (failError) {
+      // fail_notification_outbox may fail due to enum cast issue — non-critical
+      console.error(`Failed to mark outbox ${item.id} as failed:`, failError instanceof Error ? failError.message : failError);
+    }
   }
 }
 console.log(JSON.stringify({claimed: batch.length, sent}));

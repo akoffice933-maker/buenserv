@@ -15,10 +15,22 @@ type DeliveryResult = {
   sent: number;
 };
 
-function buildNotificationText(type: string, leadId?: string | null) {
-  return type === 'provider_lead_notification'
-    ? `🔔 Tenés una nueva solicitud en BuenServ. Abrí tu gabinete para verla.`
-    : `💬 Un prestador respondió a tu solicitud en BuenServ. Abrí tu gabinete para continuar.`;
+function buildNotificationPayload(type: string) {
+  const text = type === 'provider_lead_notification'
+    ? '🔔 Tenés una nueva solicitud en BuenServ. Tocá el botón para abrir tu gabinete.'
+    : '💬 Un prestador respondió a tu solicitud en BuenServ. Tocá el botón para continuar.';
+
+  return {
+    text,
+    reply_markup: {
+      inline_keyboard: [[
+        {
+          text: 'Abrí tu gabinete',
+          web_app: {url: `${process.env.NEXT_PUBLIC_APP_URL}/mini-app`}
+        }
+      ]]
+    }
+  };
 }
 
 export async function deliverOutboxBatch(batchSize = 20): Promise<DeliveryResult> {
@@ -39,7 +51,7 @@ export async function deliverOutboxBatch(batchSize = 20): Promise<DeliveryResult
         headers: {'content-type': 'application/json'},
         body: JSON.stringify({
           chat_id: item.telegram_user_id,
-          text: buildNotificationText(item.notification_type, item.payload?.lead_id)
+          ...buildNotificationPayload(item.notification_type)
         })
       });
       const body = await response.json();
