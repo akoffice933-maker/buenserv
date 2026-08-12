@@ -1,0 +1,40 @@
+name: Deliver Telegram outbox
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: buenserv-outbox-delivery
+  cancel-in-progress: false
+
+jobs:
+  deliver:
+    name: Deliver pending Telegram notifications
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate scheduler configuration
+        env:
+          OUTBOX_CRON_URL: ${{ secrets.OUTBOX_CRON_URL }}
+          OUTBOX_CRON_SECRET: ${{ secrets.OUTBOX_CRON_SECRET }}
+        run: |
+          test -n "$OUTBOX_CRON_URL"
+          test -n "$OUTBOX_CRON_SECRET"
+
+      - name: Trigger protected Vercel outbox route
+        env:
+          OUTBOX_CRON_URL: ${{ secrets.OUTBOX_CRON_URL }}
+          OUTBOX_CRON_SECRET: ${{ secrets.OUTBOX_CRON_SECRET }}
+        run: |
+          curl --fail --silent --show-error \
+            --connect-timeout 10 \
+            --max-time 60 \
+            --retry 2 \
+            --retry-all-errors \
+            -H "Authorization: Bearer $OUTBOX_CRON_SECRET" \
+            "$OUTBOX_CRON_URL"
