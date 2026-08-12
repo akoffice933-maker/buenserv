@@ -22,12 +22,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
       .from('leads')
       .select(`
         id,
+        customer_profile_id,
         status,
         created_at,
         updated_at,
         categories!leads_category_id_fkey(slug),
         barrios!leads_barrio_id_fkey(name_es, name_ru, name_en),
-        providers!leads_provider_id_fkey(id, slug, status, profiles!providers_profile_id_fkey(first_name, last_name))
+        providers!leads_provider_id_fkey(id, profile_id, slug, status, profiles!providers_profile_id_fkey(display_name))
       `)
       .eq('id', leadId)
       .maybeSingle();
@@ -37,8 +38,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     // Check ownership: customer or provider
     const isCustomer = lead.customer_profile_id === identity.profileId;
-    const provider = lead.providers as unknown as {id: string} | null;
-    const isProvider = provider?.id === identity.profileId;
+    const provider = lead.providers as unknown as {id: string; profile_id: string} | null;
+    const isProvider = provider?.profile_id === identity.profileId;
 
     if (!isCustomer && !isProvider) {
       return NextResponse.json({error: 'Not allowed'}, {status: 403});
@@ -69,15 +70,15 @@ export async function GET(request: NextRequest, context: RouteContext) {
           allowedActions = ['provider_replied'];
           break;
         case 'provider_replied':
-          // Waiting for customer reply
-          allowedActions = [];
+          // Provider may complete after replying.
+          allowedActions = ['completed'];
           break;
         case 'customer_replied':
-          // Provider can reply again or complete
-          allowedActions = ['provider_replied', 'completed'];
+          // Provider may complete after customer reply.
+          allowedActions = ['completed'];
           break;
         default:
-          // completed, cancelled, etc.
+          // completed, cancelled, expired, etc.
           allowedActions = [];
       }
     } else if (isCustomer) {
@@ -98,25 +99,33 @@ export async function GET(request: NextRequest, context: RouteContext) {
       }
     }
 
+    const category = Array.isArray(lead.categories) ? lead.categories[0] : lead.categories;
+    const barrio = Array.isArray(lead.barrios) ? lead.barrios[0] : lead.barrios;
+    const providerRow = Array.isArray(lead.providers) ? lead.providers[0] : lead.providers;
+    const providerProfile = providerRow && Array.isArray(providerRow.profiles) ? providerRow.profiles[0] : providerRow?.profiles;
+
+    const providerDisplayName = Array.isArray(providerProfile)
+      ? providerProfile[0]?.display_name ?? ''
+      : providerProfile?.display_name ?? '';
+
     // Format lead data for frontend
     const formattedLead = {
       id: lead.id,
       status: lead.status,
       created_at: lead.created_at,
       updated_at: lead.updated_at,
-      category: lead.categories ? lead.categories.slug : null,
+      category: category ? category.slug : null,
       barrio: {
-        name_es: lead.barrios?.name_es ?? '',
-        name_ru: lead.barrios?.name_ru ?? '',
-        name_en: lead.barrios?.name_en ?? '',
+        name_es: barrio?.name_es ?? '',
+        name_ru: barrio?.name_ru ?? '',
+        name_en: barrio?.name_en ?? '',
       },
-      provider: lead.providers ? {
-        id: lead.providers.id,
-        slug: lead.providers.slug,
-        status: lead.providers.status,
+      provider: providerRow ? {
+        id: providerRow.id,
+        slug: providerRow.slug,
+        status: providerRow.status,
         profile: {
-          first_name: lead.providers.profiles?.first_name ?? '',
-          last_name: lead.providers.profiles?.last_name ?? '',
+          display_name: providerDisplayName
         }
       } : null,
       events: events.map(e => ({

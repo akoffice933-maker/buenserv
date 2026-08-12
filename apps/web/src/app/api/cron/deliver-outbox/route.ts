@@ -1,4 +1,5 @@
 import {NextRequest, NextResponse} from 'next/server';
+import {timingSafeEqual} from 'node:crypto';
 import {getServerEnv} from '@/lib/env';
 import {deliverOutboxBatch} from '@/lib/telegram/deliver-outbox';
 
@@ -10,7 +11,7 @@ function timingSafeEqualString(a: string, b: string) {
   const bufferA = Buffer.from(a, 'utf8');
   const bufferB = Buffer.from(b, 'utf8');
   if (bufferA.length !== bufferB.length) return false;
-  return crypto.timingSafeEqual(bufferA, bufferB);
+  return timingSafeEqual(bufferA, bufferB);
 }
 
 export async function GET(request: NextRequest) {

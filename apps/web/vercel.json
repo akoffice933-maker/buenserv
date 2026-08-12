@@ -1,0 +1,9 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/deliver-outbox",
+      "schedule": "*/5 * * * *",
+      "timezone": "America/Argentina/Buenos_Aires"
+    }
+  ]
+}

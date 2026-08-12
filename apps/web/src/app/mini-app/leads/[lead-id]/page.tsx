@@ -1,0 +1,379 @@
+'use client';
+
+import {useCallback, useEffect, useState} from 'react';
+import {useParams, useRouter} from 'next/navigation';
+
+type Lang = 'es' | 'ru' | 'en';
+
+type LeadDetail = {
+  id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  category: string | null;
+  barrio: {
+    name_es: string;
+    name_ru: string;
+    name_en: string;
+  } | null;
+  provider: {
+    id: string;
+    slug: string;
+    status: string;
+    profile: {
+      display_name: string;
+    }
+  } | null;
+  events: Array<{
+    event_type: string;
+    actor_type: string;
+    created_at: string;
+    metadata: Record<string, unknown>;
+  }>;
+  lastEventType: string | null;
+  allowedActions: string[];
+  isCustomer: boolean;
+  isProvider: boolean;
+};
+
+const CAT_LABELS: Record<Lang, Record<string, string>> = {
+  es: {limpieza: 'Limpieza', reparaciones: 'Reparaciones', mascotas: 'Mascotas', mudanzas: 'Mudanzas', clases: 'Clases', mensajeria: 'Mensajería', 'taxi-traslados': 'Taxi'},
+  ru: {limpieza: 'Уборка', reparaciones: 'Ремонт', mascotas: 'Питомцы', mudanzas: 'Переезды', классы: 'Занятия', mensajeria: 'Курьеры', 'taxi-trasлоз': 'Такси'},
+  en: {limpieza: 'Cleaning', reparaciones: 'Repairs', mascotas: 'Pets', mudanzas: 'Moving', clases: 'Lessons', mensajeria: 'Delivery', 'taxi-trasлоз': 'Taxi'},
+};
+
+const I18N: Record<Lang, {
+  greeting: string;
+  providerProfile: string;
+  becomeProvider: string;
+  becomeProviderDesc: string;
+  incomingRequests: string;
+  myRequests: string;
+  empty: string;
+  openRequest: string;
+  cancelRequest: string;
+  noSession: string;
+  loadError: string;
+  loading: string;
+  providerStatus: Record<string, string>;
+  leadStatus: Record<string, string>;
+  actionProviderOpened: string;
+  actionProviderReplied: string;
+  actionCustomerReplied: string;
+  actionCompleted: string;
+  actionCancelled: string;
+  sessionExpired: string;
+}> = {
+  es: {
+    greeting: 'Hola',
+    providerProfile: 'Mi perfil profesional',
+    becomeProvider: '¿Ofrecés servicios?',
+    becomeProviderDesc: 'Registrate como prestador desde el bot.',
+    incomingRequests: 'Solicitudes recibidas',
+    myRequests: 'Mis solicitudes',
+    empty: 'Todavía no hay solicitudes.',
+    openRequest: 'Abrir solicitud',
+    cancelRequest: 'Cancelar solicitud',
+    noSession: 'Abrí tu gabinete desde el bot de BuenServ.',
+    sessionExpired: 'Сессия истекла. Откройте кабинет заново из BuenServ bot.',
+    loadError: 'No pudimos cargar tu gabinete.',
+    loading: 'Cargando…',
+    providerStatus: {draft: 'Borrador', pending: 'En moderación', approved: 'Aprobado', rejected: 'Necesita cambios', suspended: 'Suspendido'},
+    leadStatus: {created: 'Creada', contacted: 'Enviada', provider_replied: 'Respondida', success: 'Finalizada', no_response: 'Sin respuesta', cancelled: 'Cancelada'},
+    actionProviderOpened: 'Abrir solicitud',
+    actionProviderReplied: 'Responder',
+    actionCustomerReplied: 'Cliente respondió',
+    actionCompleted: 'Completar',
+    actionCancelled: 'Cancelar'
+  },
+  ru: {
+    greeting: 'Привет',
+    providerProfile: 'Мой профиль',
+    becomeProvider: 'Предлагаете услуги?',
+    becomeProviderDesc: 'Зарегистрируйтесь как исполнитель через бота.',
+    incomingRequests: 'Входящие заявки',
+    myRequests: 'Мои заявки',
+    empty: 'Пока нет заявок.',
+    openRequest: 'Открыть заявку',
+    cancelRequest: 'Отменить заявку',
+    noSession: 'Откройте кабинет из бота BuenServ.',
+    sessionExpired: 'Сессия истекла. Откройте заявку снова из BuenServ bot.',
+    loadError: 'Не удалось загрузить кабинет.',
+    loading: 'Загрузка…',
+    providerStatus: {draft: 'Черновик', pending: 'На модерации', approved: 'Одобрен', rejected: 'Нужны правки', suspended: 'Приостановлен'},
+    leadStatus: {created: 'Создана', contacted: 'Отправлена', provider_replied: 'Ответили', success: 'Завершена', no_response: 'Нет ответа', cancelled: 'Отменена'},
+    actionProviderOpened: 'Открыть заявку',
+    actionProviderReplied: 'Ответить',
+    actionCustomerReplied: 'Клиент ответил',
+    actionCompleted: 'Завершить',
+    actionCancelled: 'Отменить'
+  },
+  en: {
+    greeting: 'Hello',
+    providerProfile: 'My profile',
+    becomeProvider: 'Do you offer services?',
+    becomeProviderDesc: 'Register as a provider via the bot.',
+    incomingRequests: 'Incoming requests',
+    myRequests: 'My requests',
+    empty: 'No requests yet.',
+    openRequest: 'Open request',
+    cancelRequest: 'Cancel request',
+    noSession: 'Open your cabinet from the BuenServ bot.',
+    sessionExpired: 'Session expired. Open the request again from the BuenServ bot.',
+    loadError: 'Could not load your cabinet.',
+    loading: 'Loading…',
+    providerStatus: {draft: 'Draft', pending: 'Pending review', approved: 'Approved', rejected: 'Needs changes', suspended: 'Suspended'},
+    leadStatus: {created: 'Created', contacted: 'Sent', provider_replied: 'Replied', success: 'Completed', no_response: 'No response', cancelled: 'Cancelled'},
+    actionProviderOpened: 'Open request',
+    actionProviderReplied: 'Reply',
+    actionCustomerReplied: 'Customer replied',
+    actionCompleted: 'Complete',
+    actionCancelled: 'Cancel'
+  }
+};
+
+function localizedBarrio(barrios: {name_es: string; name_ru: string; name_en: string} | null, lang: Lang): string {
+  if (!barrios) return 'Buenos Aires';
+  if (lang === 'ru' && barrios.name_ru) return barrios.name_ru;
+  if (lang === 'en' && barrios.name_en) return barrios.name_en;
+  return barrios.name_es;
+}
+
+export default function LeadDetailPage() {
+  const router = useRouter();
+  const params = useParams<{leadId: string}>();
+  const leadId = params.leadId;
+  const [lead, setLead] = useState<LeadDetail | null>(null);
+  const [error, setError] = useState('');
+  const [lang, setLang] = useState<Lang>('es');
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Try multiple strategies to extract Telegram init data from the page.
+  function getTelegramInitData(): string {
+    try {
+      const w = window as unknown as {Telegram?: {WebApp?: {initData?: string}}};
+      if (w.Telegram?.WebApp?.initData) return w.Telegram.WebApp.initData;
+    } catch { /* ignore */ }
+    try {
+      const hash = window.location.hash;
+      if (hash) {
+        const hashParams = new URLSearchParams(hash.replace(/^#/, ''));
+        const tgWebAppData = hashParams.get('tgWebAppData');
+        if (tgWebAppData) return tgWebAppData;
+      }
+    } catch { /* ignore */ }
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tgWebAppData = urlParams.get('tgWebAppData');
+      if (tgWebAppData) return tgWebAppData;
+    } catch { /* ignore */ }
+    return '';
+  }
+
+  function submitAction(action: 'provider_opened' | 'provider_replied' | 'customer_replied' | 'completed' | 'cancelled') {
+    const initData = getTelegramInitData();
+    if (!initData) {
+      setError(I18N[lang].noSession);
+      return;
+    }
+    fetch(`/api/mini-app/leads/${leadId}/action`, {
+      method: 'POST',
+      headers: {'content-type': 'application/json', 'x-telegram-init-data': initData},
+      body: JSON.stringify({action, idempotencyKey: crypto.randomUUID()})
+    })
+    .then(async (response) => {
+      const body = await response.json();
+      if (!response.ok) {
+        if (response.status === 401) throw new Error(I18N[lang].sessionExpired);
+        throw new Error(body.error ?? I18N[lang].loadError);
+      }
+      // Refetch lead data to update state
+      fetchLeadData();
+    })
+    .catch((reason) => setError(reason instanceof Error ? reason.message : I18N[lang].loadError));
+  }
+
+  const fetchLeadData = useCallback(async () => {
+    if (!leadId) return;
+    try {
+      setLoading(true);
+      setError('');
+      const initData = getTelegramInitData();
+      if (!initData) {
+        setError(I18N[lang].noSession);
+        return;
+      }
+      const response = await fetch(`/api/mini-app/leads/${leadId}`, {headers: {'x-telegram-init-data': initData}});
+      if (!response.ok) {
+        const body = await response.json();
+        if (response.status === 401) throw new Error(I18N[lang].sessionExpired);
+        throw new Error(body.error ?? I18N[lang].loadError);
+      }
+      const leadData = await response.json();
+      setLead(leadData.lead);
+      // Set locale from profile if available in lead data (we don't have it, so we'll keep current or default)
+      // In a real app, we might get this from the lead data or a separate profile fetch
+    } catch (err) {
+      setError(err instanceof Error ? err.message : I18N[lang].loadError);
+    } finally {
+      setLoading(false);
+    }
+  }, [leadId, lang]);
+
+  useEffect(() => {
+    // Expand the Mini App to full screen
+    try {
+      const w = window as unknown as {Telegram?: {WebApp?: {expand?: () => void}}};
+      w.Telegram?.WebApp?.expand?.();
+    } catch { /* ignore */ }
+    
+    // Fetch initial data
+    fetchLeadData();
+    
+    // Set locale from hash or default
+    try {
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const langFromHash = hash.get('lang') as Lang;
+      if (langFromHash && ['es', 'ru', 'en'].includes(langFromHash)) {
+        setLang(langFromHash);
+      }
+    } catch { /* ignore */ }
+  }, [leadId, fetchLeadData]);
+
+  if (error) {
+    return (
+      <div style={{padding: 20, textAlign: 'center'}}>
+        <h2>Error</h2>
+        <p>{error}</p>
+        <button onClick={() => router.push('/mini-app')} style={{marginTop: 10}}>
+          Volver al inicio
+        </button>
+      </div>
+    );
+  }
+
+  if (loading || !lead) {
+    return (
+      <div style={{padding: 20, textAlign: 'center'}}>
+        <p>Cargando...</p>
+      </div>
+    );
+  }
+
+  const t = I18N[lang];
+  const catName = CAT_LABELS[lang][lead.category ?? ''] ?? lead.category ?? 'Servicio';
+  const barrioName = localizedBarrio(lead.barrio, lang);
+  const providerName = lead.provider ? lead.provider.profile.display_name : null;
+  const providerStatusText = lead.provider ? t.providerStatus[lead.provider.status] ?? lead.provider.status : null;
+  const leadStatusText = t.leadStatus[lead.status] ?? lead.status;
+
+  return (
+    <div style={{padding: 20, maxWidth: 500, margin: '0 auto'}}>
+      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20}}>
+        <h1 style={{margin: 0, fontSize: 24}}>{t.greeting}</h1>
+        <div style={{display: 'flex', gap: 10}}>
+          <button onClick={() => router.push('/mini-app')} style={{padding: '8px 12px', fontSize: 14}}>
+            {t.becomeProvider}
+          </button>
+        </div>
+      </div>
+      
+      <div style={{background: '#f8f9fa', borderRadius: 12, padding: 16, marginBottom: 20}}>
+        <div style={{fontSize: 18, fontWeight: 'bold', marginBottom: 8}}>
+          {catName} · {barrioName}
+        </div>
+        <div style={{color: '#666', fontSize: 14, marginBottom: 12}}>
+          {leadStatusText}
+        </div>
+        {lead.provider && (
+          <div style={{borderTop: '1px solid #eee', paddingTop: 12, marginTop: 12}}>
+            <div style={{fontSize: 16, fontWeight: 'bold', marginBottom: 4}}>
+              {t.providerProfile}
+            </div>
+            <div style={{color: '#666', fontSize: 14}}>
+              {providerName}
+            </div>
+            {providerStatusText && (
+              <div style={{marginTop: 4, fontSize: 14}}>
+                {providerStatusText}
+              </div>
+            )}
+          </div>
+        )}
+        <div style={{marginTop: 16, fontSize: 16, fontWeight: 'bold'}}>
+          Historia
+        </div>
+        {lead.events.length > 0 ? (
+          <div style={{marginTop: 8}}>
+            {lead.events.map((event, index) => (
+              <div key={index} style={{padding: 8, background: '#fff', borderRadius: 8, marginBottom: 4}}>
+                <div style={{display: 'flex', justifyContent: 'space-between', fontSize: 13}}>
+                  <span>
+                    {event.actor_type === 'provider' 
+                      ? (event.event_type === 'provider_opened' ? 'Abrió la solicitud' : 
+                         event.event_type === 'provider_replied' ? 'Respondió' : 
+                         event.event_type)
+                      : event.actor_type === 'customer'
+                        ? (event.event_type === 'customer_replied' ? 'El cliente respondió' : 
+                           event.event_type === 'cancelled' ? 'Canceló la solicitud' : 
+                           event.event_type)
+                        : event.event_type}
+                  </span>
+                  <span style={{color: '#666'}}>
+                    {new Date(event.created_at).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{color: '#666', fontSize: 14, textAlign: 'center'}}>
+            Sin historial
+          </p>
+        )}
+      </div>
+      
+      {lead.allowedActions.length > 0 && (
+        <div style={{marginTop: 20}}>
+          <h2 style={{fontSize: 18, marginBottom: 12}}>Acciones disponibles</h2>
+          <div style={{display: 'flex', flexDirection: 'column', gap: 8}}>
+            {lead.allowedActions.map((action, index) => {
+              const label = 
+                action === 'provider_opened' ? t.actionProviderOpened :
+                action === 'provider_replied' ? t.actionProviderReplied :
+                action === 'customer_replied' ? t.actionCustomerReplied :
+                action === 'completed' ? t.actionCompleted :
+                action === 'cancelled' ? t.actionCancelled :
+                action;
+              
+              return (
+                <button 
+                  key={index} 
+                  onClick={() => submitAction(action as any)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    fontSize: 16,
+                    border: 'none',
+                    borderRadius: 8,
+                    background: '#2481cc',
+                    color: '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      
+      <div style={{marginTop: 30, textAlign: 'center'}}>
+        <button onClick={() => router.push('/mini-app')} style={{padding: '10px 16px', fontSize: 14}}>
+          Volver al inicio
+        </button>
+      </div>
+    </div>
+  );
+}
