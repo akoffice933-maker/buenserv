@@ -4,7 +4,8 @@ import {getMiniAppInitData, resolveMiniAppIdentity} from '@/lib/telegram/mini-ap
 
 export async function GET(request: NextRequest) {
   try {
-    const identity = await resolveMiniAppIdentity(getMiniAppInitData(request));
+    // Read-only dashboard route may tolerate a longer Mini App session.
+    const identity = await resolveMiniAppIdentity(getMiniAppInitData(request), 3600);
     if (!identity) return NextResponse.json({error: 'Mini App profile not found'}, {status: 404});
 
     const supabase = createAdminClient();
