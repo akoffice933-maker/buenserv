@@ -15,10 +15,12 @@ const rpc = async (name, body) => {
   return response.json();
 };
 
-const copy = (type, leadId) => ({
-  text: type === 'provider_lead_notification'
-    ? '🔔 Tenés una nueva solicitud en BuenServ. Tocá el botón para abrir tu gabinete.'
-    : '💬 Un prestador respondió a tu solicitud en BuenServ. Tocá el botón para continuar.',
+const copy = (type) => ({
+  text: ({
+    provider_lead_notification: '🔔 Tenés una nueva solicitud en BuenServ. Tocá el botón para abrir tu gabinete.',
+    customer_provider_reply: '💬 Un prestador respondió a tu solicitud en BuenServ. Tocá el botón para continuar.',
+    provider_customer_reply: '💬 El cliente respondió en BuenServ. Tocá el botón para continuar.'
+  })[type] ?? '💬 Un prestador respondió a tu solicitud en BuenServ. Tocá el botón para continuar.',
   reply_markup: {
     inline_keyboard: [[
       {
@@ -36,7 +38,7 @@ for (const item of batch) {
     if (!item.telegram_user_id) throw new Error('recipient_has_no_telegram_user_id');
     const response = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: 'POST', headers: {'content-type': 'application/json'},
-      body: JSON.stringify({chat_id: item.telegram_user_id, ...copy(item.notification_type, item.payload?.lead_id)})
+      body: JSON.stringify({chat_id: item.telegram_user_id, ...copy(item.notification_type)})
     });
     const body = await response.json();
     if (!response.ok || !body.ok) throw new Error(`telegram_delivery_failed:${response.status}`);

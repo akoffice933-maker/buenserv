@@ -21,24 +21,37 @@ vi.mock('@/lib/telegram/lead-actions', () => ({
 const createAdminClientMock = vi.mocked(createAdminClient);
 const resolveMiniAppIdentityMock = vi.mocked(resolveMiniAppIdentity);
 
-function buildSupabaseMock(lead: any, events: any[]) {
-  const query = {
+function buildSupabaseMock(lead: any, events: any[], messages: any[] = []) {
+  const leadQuery = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
-    maybeSingle: vi.fn(),
-    order: vi.fn()
+    maybeSingle: vi.fn().mockResolvedValue({data: lead, error: null})
   };
 
-  query.maybeSingle.mockResolvedValue({data: lead, error: null});
-  query.order.mockResolvedValue({data: events, error: null});
+  const eventsQuery = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockResolvedValue({data: events, error: null})
+  };
+
+  const messagesQuery = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockResolvedValue({data: messages, error: null})
+  };
 
   const supabase = {
-    from: vi.fn(() => query),
+    from: vi.fn((table: string) => {
+      if (table === 'leads') return leadQuery;
+      if (table === 'lead_events') return eventsQuery;
+      if (table === 'lead_messages') return messagesQuery;
+      return leadQuery;
+    }),
     rpc: vi.fn().mockResolvedValue({data: 'event-id', error: null})
   };
 
   createAdminClientMock.mockReturnValue(supabase as any);
-  return {query, supabase};
+  return {leadQuery, eventsQuery, messagesQuery, supabase};
 }
 
 describe('Mini App lead detail route', () => {
@@ -65,7 +78,8 @@ describe('Mini App lead detail route', () => {
           profiles: [{display_name: 'Mariana López'}]
         }]
       },
-      [{event_type: 'provider_notified', actor_type: 'system', created_at: '2026-01-01T00:00:00Z', metadata: {}}]
+      [{event_type: 'provider_notified', actor_type: 'system', created_at: '2026-01-01T00:00:00Z', metadata: {}}],
+      [{id: 'message-1', body: 'Hola', sender_role: 'provider', sender_profile_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', created_at: '2026-01-01T00:01:00Z', sender_profile: {display_name: 'Mariana López'}}]
     );
 
     const response = await GET(new Request('http://localhost/api/mini-app/leads/00000000-0000-4000-8000-000000000001', {
@@ -77,6 +91,7 @@ describe('Mini App lead detail route', () => {
     expect(payload.lead).toBeDefined();
     expect(payload.lead.isProvider).toBe(true);
     expect(payload.lead.allowedActions).toEqual(['provider_opened']);
+    expect(payload.lead.messages).toHaveLength(1);
     expect(resolveMiniAppIdentityMock).toHaveBeenCalledWith('test-init-data', 3600);
   });
 
@@ -99,6 +114,7 @@ describe('Mini App lead detail route', () => {
           profiles: [{display_name: 'Mariana López'}]
         }]
       },
+      [],
       []
     );
 
@@ -130,6 +146,7 @@ describe('Mini App lead detail route', () => {
           profiles: {display_name: 'Mariana López'}
         }
       },
+      [],
       []
     );
 
@@ -159,7 +176,8 @@ describe('Mini App lead detail route', () => {
           profiles: {display_name: 'Mariana López'}
         }
       },
-      [{event_type: 'provider_replied', actor_type: 'provider', created_at: '2026-01-01T00:00:00Z', metadata: {}}]
+      [{event_type: 'provider_replied', actor_type: 'provider', created_at: '2026-01-01T00:00:00Z', metadata: {}}],
+      []
     );
 
     const response = await GET(new Request('http://localhost/api/mini-app/leads/00000000-0000-4000-8000-000000000003', {
@@ -191,7 +209,8 @@ describe('Mini App lead detail route', () => {
           profiles: {display_name: 'Mariana López'}
         }
       },
-      [{event_type: 'completed', actor_type: 'provider', created_at: '2026-01-01T00:00:00Z', metadata: {}}]
+      [{event_type: 'completed', actor_type: 'provider', created_at: '2026-01-01T00:00:00Z', metadata: {}}],
+      []
     );
 
     const response = await GET(new Request('http://localhost/api/mini-app/leads/00000000-0000-4000-8000-000000000004', {

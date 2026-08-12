@@ -4,6 +4,14 @@ import {getMiniAppInitData, resolveMiniAppIdentity} from '@/lib/telegram/mini-ap
 
 type RouteContext = {params: Promise<{id: string}>};
 
+type LeadMessageRow = {
+  id: string;
+  body: string;
+  sender_role: string;
+  created_at: string;
+  sender_profile?: {display_name?: string | null} | Array<{display_name?: string | null}> | null;
+};
+
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     // Read-only lead detail route uses a longer initData freshness window.
@@ -52,6 +60,14 @@ export async function GET(request: NextRequest, context: RouteContext) {
       .order('created_at', {ascending: true});
 
     if (eventsError) throw eventsError;
+
+    const {data: messages, error: messagesError} = await supabase
+      .from('lead_messages')
+      .select('id, body, sender_role, created_at, sender_profile:profiles!lead_messages_sender_profile_id_fkey(display_name)')
+      .eq('lead_id', leadId)
+      .order('created_at', {ascending: true});
+
+    if (messagesError) throw messagesError;
 
     // Determine last event type and allowed actions
     const lastEvent = events.length > 0 ? events[events.length - 1] : null;
@@ -129,6 +145,16 @@ export async function GET(request: NextRequest, context: RouteContext) {
         actor_type: e.actor_type,
         created_at: e.created_at
       })),
+      messages: (messages ?? []).map((message: LeadMessageRow) => {
+        const senderProfile = Array.isArray(message.sender_profile) ? message.sender_profile[0] : message.sender_profile;
+        return {
+          id: message.id,
+          body: message.body,
+          senderRole: message.sender_role,
+          senderDisplayName: senderProfile?.display_name ?? null,
+          createdAt: message.created_at
+        };
+      }),
       lastEventType,
       allowedActions,
       isCustomer,

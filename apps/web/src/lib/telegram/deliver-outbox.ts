@@ -15,10 +15,14 @@ type DeliveryResult = {
   sent: number;
 };
 
-function buildNotificationPayload(type: string) {
-  const text = type === 'provider_lead_notification'
-    ? '🔔 Tenés una nueva solicitud en BuenServ. Tocá el botón para abrir tu gabinete.'
-    : '💬 Un prestador respondió a tu solicitud en BuenServ. Tocá el botón para continuar.';
+const NOTIFICATION_COPY: Record<string, string> = {
+  provider_lead_notification: '🔔 Tenés una nueva solicitud en BuenServ. Tocá el botón para abrir tu gabinete.',
+  customer_provider_reply: '💬 Un prestador respondió a tu solicitud en BuenServ. Tocá el botón para continuar.',
+  provider_customer_reply: '💬 El cliente respondió en BuenServ. Tocá el botón para continuar.'
+};
+
+export function buildNotificationPayload(type: string) {
+  const text = NOTIFICATION_COPY[type] ?? NOTIFICATION_COPY.customer_provider_reply;
 
   return {
     text,

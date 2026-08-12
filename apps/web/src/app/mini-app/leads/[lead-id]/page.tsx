@@ -30,6 +30,13 @@ type LeadDetail = {
     created_at: string;
     metadata: Record<string, unknown>;
   }>;
+  messages: Array<{
+    id: string;
+    body: string;
+    senderRole: string;
+    senderDisplayName: string | null;
+    createdAt: string;
+  }>;
   lastEventType: string | null;
   allowedActions: string[];
   isCustomer: boolean;
@@ -55,6 +62,12 @@ const I18N: Record<Lang, {
   noSession: string;
   loadError: string;
   loading: string;
+  messagesTitle: string;
+  messagePlaceholder: string;
+  sendMessage: string;
+  sendingMessage: string;
+  noMessages: string;
+  you: string;
   providerStatus: Record<string, string>;
   leadStatus: Record<string, string>;
   actionProviderOpened: string;
@@ -78,6 +91,12 @@ const I18N: Record<Lang, {
     sessionExpired: 'La sesión venció. Abrí tu gabinete nuevamente desde el bot de BuenServ.',
     loadError: 'No pudimos cargar tu gabinete.',
     loading: 'Cargando…',
+    messagesTitle: 'Mensajes',
+    messagePlaceholder: 'Escribí tu respuesta…',
+    sendMessage: 'Enviar mensaje',
+    sendingMessage: 'Enviando…',
+    noMessages: 'Todavía no hay mensajes.',
+    you: 'Vos',
     providerStatus: {draft: 'Borrador', pending: 'En moderación', approved: 'Aprobado', rejected: 'Necesita cambios', suspended: 'Suspendido'},
     leadStatus: {created: 'Creada', contacted: 'Enviada', provider_replied: 'Respondida', success: 'Finalizada', no_response: 'Sin respuesta', cancelled: 'Cancelada'},
     actionProviderOpened: 'Abrir solicitud',
@@ -100,6 +119,12 @@ const I18N: Record<Lang, {
     sessionExpired: 'Сессия истекла. Откройте заявку снова из BuenServ bot.',
     loadError: 'Не удалось загрузить кабинет.',
     loading: 'Загрузка…',
+    messagesTitle: 'Сообщения',
+    messagePlaceholder: 'Напишите ответ…',
+    sendMessage: 'Отправить',
+    sendingMessage: 'Отправка…',
+    noMessages: 'Сообщений пока нет.',
+    you: 'Вы',
     providerStatus: {draft: 'Черновик', pending: 'На модерации', approved: 'Одобрен', rejected: 'Нужны правки', suspended: 'Приостановлен'},
     leadStatus: {created: 'Создана', contacted: 'Отправлена', provider_replied: 'Ответили', success: 'Завершена', no_response: 'Нет ответа', cancelled: 'Отменена'},
     actionProviderOpened: 'Открыть заявку',
@@ -122,6 +147,12 @@ const I18N: Record<Lang, {
     sessionExpired: 'Session expired. Open the request again from the BuenServ bot.',
     loadError: 'Could not load your cabinet.',
     loading: 'Loading…',
+    messagesTitle: 'Messages',
+    messagePlaceholder: 'Write your reply…',
+    sendMessage: 'Send message',
+    sendingMessage: 'Sending…',
+    noMessages: 'No messages yet.',
+    you: 'You',
     providerStatus: {draft: 'Draft', pending: 'Pending review', approved: 'Approved', rejected: 'Needs changes', suspended: 'Suspended'},
     leadStatus: {created: 'Created', contacted: 'Sent', provider_replied: 'Replied', success: 'Completed', no_response: 'No response', cancelled: 'Cancelled'},
     actionProviderOpened: 'Open request',
@@ -147,6 +178,8 @@ export default function LeadDetailPage() {
   const [error, setError] = useState('');
   const [lang, setLang] = useState<Lang>('es');
   const [loading, setLoading] = useState<boolean>(true);
+  const [messageBody, setMessageBody] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   // Try multiple strategies to extract Telegram init data from the page.
   function getTelegramInitData(): string {
@@ -191,6 +224,35 @@ export default function LeadDetailPage() {
       fetchLeadData();
     })
     .catch((reason) => setError(reason instanceof Error ? reason.message : I18N[lang].loadError));
+  }
+
+  async function submitMessage() {
+    const text = messageBody.trim();
+    if (!text) return;
+    const initData = getTelegramInitData();
+    if (!initData) {
+      setError(I18N[lang].noSession);
+      return;
+    }
+    try {
+      setSendingMessage(true);
+      const response = await fetch(`/api/mini-app/leads/${leadId}/message`, {
+        method: 'POST',
+        headers: {'content-type': 'application/json', 'x-telegram-init-data': initData},
+        body: JSON.stringify({body: text, idempotencyKey: crypto.randomUUID()})
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        if (response.status === 401) throw new Error(I18N[lang].sessionExpired);
+        throw new Error(body.error ?? I18N[lang].loadError);
+      }
+      setMessageBody('');
+      await fetchLeadData();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : I18N[lang].loadError);
+    } finally {
+      setSendingMessage(false);
+    }
   }
 
   const fetchLeadData = useCallback(async () => {
@@ -266,6 +328,7 @@ export default function LeadDetailPage() {
   const providerName = lead.provider ? lead.provider.profile.display_name : null;
   const providerStatusText = lead.provider ? t.providerStatus[lead.provider.status] ?? lead.provider.status : null;
   const leadStatusText = t.leadStatus[lead.status] ?? lead.status;
+  const canCompose = !['success', 'cancelled', 'no_response'].includes(lead.status);
 
   return (
     <div style={{padding: 20, maxWidth: 500, margin: '0 auto'}}>
@@ -332,6 +395,51 @@ export default function LeadDetailPage() {
           </p>
         )}
       </div>
+
+      <section style={{background: '#f8f9fa', borderRadius: 12, padding: 16}}>
+        <h2 style={{fontSize: 18, margin: 0}}>{t.messagesTitle}</h2>
+        <div style={{marginTop: 12, display: 'grid', gap: 8}}>
+          {lead.messages.length > 0 ? lead.messages.map((message) => {
+            const isMine = (lead.isCustomer && message.senderRole === 'customer') || (lead.isProvider && message.senderRole === 'provider');
+            return (
+              <article key={message.id} style={{padding: 12, borderRadius: 12, background: isMine ? '#dff1ff' : '#fff', border: '1px solid #e7e7e7'}}>
+                <div style={{display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13, color: '#666'}}>
+                  <strong style={{color: '#111'}}>{isMine ? t.you : (message.senderDisplayName ?? message.senderRole)}</strong>
+                  <time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString()}</time>
+                </div>
+                <p style={{margin: '8px 0 0', whiteSpace: 'pre-wrap'}}>{message.body}</p>
+              </article>
+            );
+          }) : <p style={{color: '#666', fontSize: 14, textAlign: 'center', margin: 0}}>{t.noMessages}</p>}
+        </div>
+
+        {canCompose && (
+          <div style={{marginTop: 12, display: 'grid', gap: 8}}>
+            <textarea
+              value={messageBody}
+              onChange={(event) => setMessageBody(event.target.value)}
+              placeholder={t.messagePlaceholder}
+              rows={4}
+              style={{width: '100%', resize: 'vertical', padding: 12, borderRadius: 10, border: '1px solid #d9d9d9', font: 'inherit'}}
+            />
+            <button
+              onClick={submitMessage}
+              disabled={sendingMessage}
+              style={{
+                padding: '12px 16px',
+                fontSize: 16,
+                border: 'none',
+                borderRadius: 8,
+                background: sendingMessage ? '#8fbbe0' : '#2481cc',
+                color: '#fff',
+                cursor: sendingMessage ? 'wait' : 'pointer'
+              }}
+            >
+              {sendingMessage ? t.sendingMessage : t.sendMessage}
+            </button>
+          </div>
+        )}
+      </section>
       
       {lead.allowedActions.length > 0 && (
         <div style={{marginTop: 20}}>
