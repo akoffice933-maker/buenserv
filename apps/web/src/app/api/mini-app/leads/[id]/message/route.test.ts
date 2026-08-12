@@ -115,4 +115,22 @@ describe('Mini App lead message route', () => {
 
     expect(response.status).toBe(409);
   });
+
+  it('rejects bodies longer than 2000 characters before hitting the RPC', async () => {
+    resolveMiniAppIdentityMock.mockResolvedValue({profileId: 'provider-1', telegramUser: {id: 123}} as any);
+    buildSupabaseMock({
+      id: 'lead-5',
+      customer_profile_id: 'customer-1',
+      status: 'contacted',
+      providers: {profile_id: 'provider-1'}
+    });
+
+    const response = await POST(new Request('http://localhost/api/mini-app/leads/00000000-0000-4000-8000-000000000005/message', {
+      method: 'POST',
+      headers: {'x-telegram-init-data': 'test-init-data', 'content-type': 'application/json'},
+      body: JSON.stringify({body: 'x'.repeat(2001), idempotencyKey: '00000000-0000-0000-0000-000000000555'})
+    }) as any, {params: Promise.resolve({id: '00000000-0000-4000-8000-000000000005'})} as any);
+
+    expect(response.status).toBe(400);
+  });
 });

@@ -155,7 +155,7 @@ declare
 begin
   if p_external_source is null or p_external_id is null then raise exception 'external_idempotency_required'; end if;
   if v_body is null or char_length(v_body) = 0 then raise exception 'message_body_required'; end if;
-  if char_length(v_body) > 4000 then raise exception 'message_body_too_long'; end if;
+  if char_length(v_body) > 2000 then raise exception 'message_body_too_long'; end if;
 
   select id into v_message_id
   from lead_messages
@@ -189,7 +189,7 @@ begin
     p_actor_profile_id,
     p_external_source,
     p_external_id,
-    coalesce(p_metadata, '{}'::jsonb) || jsonb_build_object('message_body', v_body)
+    coalesce(p_metadata, '{}'::jsonb)
   );
 
   insert into lead_messages (
