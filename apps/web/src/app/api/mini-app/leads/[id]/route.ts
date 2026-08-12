@@ -36,10 +36,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
     if (leadError) throw leadError;
     if (!lead) return NextResponse.json({error: 'Lead not found'}, {status: 404});
 
-    // Check ownership: customer or provider
+    const providerRow = Array.isArray(lead.providers) ? lead.providers[0] : lead.providers;
     const isCustomer = lead.customer_profile_id === identity.profileId;
-    const provider = lead.providers as unknown as {id: string; profile_id: string} | null;
-    const isProvider = provider?.profile_id === identity.profileId;
+    const isProvider = providerRow?.profile_id === identity.profileId;
 
     if (!isCustomer && !isProvider) {
       return NextResponse.json({error: 'Not allowed'}, {status: 403});
@@ -62,7 +61,6 @@ export async function GET(request: NextRequest, context: RouteContext) {
     let allowedActions: string[] = [];
     if (isProvider) {
       switch (lastEventType) {
-        case null:
         case 'provider_notified':
           allowedActions = ['provider_opened'];
           break;
@@ -78,30 +76,28 @@ export async function GET(request: NextRequest, context: RouteContext) {
           allowedActions = ['completed'];
           break;
         default:
-          // completed, cancelled, expired, etc.
           allowedActions = [];
       }
     } else if (isCustomer) {
       switch (lastEventType) {
-        case null:
-        case 'customer_contacted':
-          allowedActions = ['cancelled'];
+        case 'completed':
+        case 'cancelled':
+        case 'expired':
+          allowedActions = [];
           break;
         case 'provider_replied':
-          allowedActions = ['customer_replied'];
+          allowedActions = ['customer_replied', 'cancelled'];
           break;
         case 'customer_replied':
-          // Waiting for provider
-          allowedActions = [];
+          allowedActions = ['cancelled'];
           break;
         default:
-          allowedActions = [];
+          allowedActions = ['cancelled'];
       }
     }
 
     const category = Array.isArray(lead.categories) ? lead.categories[0] : lead.categories;
     const barrio = Array.isArray(lead.barrios) ? lead.barrios[0] : lead.barrios;
-    const providerRow = Array.isArray(lead.providers) ? lead.providers[0] : lead.providers;
     const providerProfile = providerRow && Array.isArray(providerRow.profiles) ? providerRow.profiles[0] : providerRow?.profiles;
 
     const providerDisplayName = Array.isArray(providerProfile)
@@ -131,8 +127,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       events: events.map(e => ({
         event_type: e.event_type,
         actor_type: e.actor_type,
-        created_at: e.created_at,
-        metadata: e.metadata
+        created_at: e.created_at
       })),
       lastEventType,
       allowedActions,

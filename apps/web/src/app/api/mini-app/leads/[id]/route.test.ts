@@ -47,7 +47,7 @@ describe('Mini App lead detail route', () => {
   });
 
   it('returns 200 for owning provider and honors 3600s read-only freshness', async () => {
-    resolveMiniAppIdentityMock.mockResolvedValue({profileId: 'provider-1', telegramUser: {id: 123}} as any);
+    resolveMiniAppIdentityMock.mockResolvedValue({profileId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', telegramUser: {id: 123}} as any);
     buildSupabaseMock(
       {
         id: 'lead-1',
@@ -57,13 +57,13 @@ describe('Mini App lead detail route', () => {
         updated_at: '2026-01-01T00:00:00Z',
         categories: {slug: 'limpieza'},
         barrios: {name_es: 'Palermo', name_ru: 'Палермо', name_en: 'Palermo'},
-        providers: {
-          id: 'provider-1',
-          profile_id: 'provider-1',
+        providers: [{
+          id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          profile_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
           slug: 'mariana-lopez',
           status: 'approved',
-          profiles: {display_name: 'Mariana López'}
-        }
+          profiles: [{display_name: 'Mariana López'}]
+        }]
       },
       [{event_type: 'provider_notified', actor_type: 'system', created_at: '2026-01-01T00:00:00Z', metadata: {}}]
     );
@@ -78,6 +78,37 @@ describe('Mini App lead detail route', () => {
     expect(payload.lead.isProvider).toBe(true);
     expect(payload.lead.allowedActions).toEqual(['provider_opened']);
     expect(resolveMiniAppIdentityMock).toHaveBeenCalledWith('test-init-data', 3600);
+  });
+
+  it('does not allow provider_opened when no prior event exists', async () => {
+    resolveMiniAppIdentityMock.mockResolvedValue({profileId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', telegramUser: {id: 123}} as any);
+    buildSupabaseMock(
+      {
+        id: 'lead-6',
+        customer_profile_id: 'customer-1',
+        status: 'created',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+        categories: {slug: 'limpieza'},
+        barrios: {name_es: 'Palermo', name_ru: 'Палермо', name_en: 'Palermo'},
+        providers: [{
+          id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          profile_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          slug: 'mariana-lopez',
+          status: 'approved',
+          profiles: [{display_name: 'Mariana López'}]
+        }]
+      },
+      []
+    );
+
+    const response = await GET(new Request('http://localhost/api/mini-app/leads/00000000-0000-4000-8000-000000000006', {
+      headers: {'x-telegram-init-data': 'test-init-data'}
+    }) as any, {params: Promise.resolve({id: '00000000-0000-4000-8000-000000000006'})} as any);
+
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+    expect(payload.lead.allowedActions).toEqual([]);
   });
 
   it('returns 403 for a non-owning provider', async () => {
@@ -138,7 +169,7 @@ describe('Mini App lead detail route', () => {
     expect(response.status).toBe(200);
     const payload = await response.json();
     expect(payload.lead.isCustomer).toBe(true);
-    expect(payload.lead.allowedActions).toEqual(['customer_replied']);
+    expect(payload.lead.allowedActions).toEqual(['customer_replied', 'cancelled']);
   });
 
   it('does not present destructive actions after completed', async () => {

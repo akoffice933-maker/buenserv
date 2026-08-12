@@ -16,7 +16,7 @@ const CAT_LABELS: Record<Lang, Record<string, string>> = {
 const I18N: Record<Lang, {
   greeting: string; providerProfile: string; becomeProvider: string; becomeProviderDesc: string;
   incomingRequests: string; myRequests: string; empty: string; openRequest: string; cancelRequest: string;
-  noSession: string; loadError: string; loading: string;
+  noSession: string; sessionExpired: string; loadError: string; loading: string;
   providerStatus: Record<string, string>; leadStatus: Record<string, string>;
 }> = {
   es: {
@@ -24,7 +24,7 @@ const I18N: Record<Lang, {
     becomeProviderDesc: 'Registrate como prestador desde el bot.',
     incomingRequests: 'Solicitudes recibidas', myRequests: 'Mis solicitudes',
     empty: 'Todavía no hay solicitudes.', openRequest: 'Abrir solicitud', cancelRequest: 'Cancelar solicitud',
-    noSession: 'Abrí tu gabinete desde el bot de BuenServ.', loadError: 'No pudimos cargar tu gabinete.', loading: 'Cargando…',
+    noSession: 'Abrí tu gabinete desde el bot de BuenServ.', sessionExpired: 'Сессия истекла. Откройте кабинет заново из BuenServ bot.', loadError: 'No pudimos cargar tu gabinete.', loading: 'Cargando…',
     providerStatus: {draft: 'Borrador', pending: 'En moderación', approved: 'Aprobado', rejected: 'Necesita cambios', suspended: 'Suspendido'},
     leadStatus: {created: 'Creada', contacted: 'Enviada', provider_replied: 'Respondida', success: 'Finalizada', no_response: 'Sin respuesta', cancelled: 'Cancelada'}
   },
@@ -33,7 +33,7 @@ const I18N: Record<Lang, {
     becomeProviderDesc: 'Зарегистрируйтесь как исполнитель через бота.',
     incomingRequests: 'Входящие заявки', myRequests: 'Мои заявки',
     empty: 'Пока нет заявок.', openRequest: 'Открыть заявку', cancelRequest: 'Отменить заявку',
-    noSession: 'Откройте кабинет из бота BuenServ.', loadError: 'Не удалось загрузить кабинет.', loading: 'Загрузка…',
+    noSession: 'Откройте кабинет из бота BuenServ.', sessionExpired: 'Сессия истекла. Откройте кабинет заново из BuenServ bot.', loadError: 'Не удалось загрузить кабинет.', loading: 'Загрузка…',
     providerStatus: {draft: 'Черновик', pending: 'На модерации', approved: 'Одобрен', rejected: 'Нужны правки', suspended: 'Приостановлен'},
     leadStatus: {created: 'Создана', contacted: 'Отправлена', provider_replied: 'Ответили', success: 'Завершена', no_response: 'Нет ответа', cancelled: 'Отменена'}
   },
@@ -42,7 +42,7 @@ const I18N: Record<Lang, {
     becomeProviderDesc: 'Register as a provider via the bot.',
     incomingRequests: 'Incoming requests', myRequests: 'My requests',
     empty: 'No requests yet.', openRequest: 'Open request', cancelRequest: 'Cancel request',
-    noSession: 'Open your cabinet from the BuenServ bot.', loadError: 'Could not load your cabinet.', loading: 'Loading…',
+    noSession: 'Open your cabinet from the BuenServ bot.', sessionExpired: 'Session expired. Open your cabinet again from the BuenServ bot.', loadError: 'Could not load your cabinet.', loading: 'Loading…',
     providerStatus: {draft: 'Draft', pending: 'Pending review', approved: 'Approved', rejected: 'Needs changes', suspended: 'Suspended'},
     leadStatus: {created: 'Created', contacted: 'Sent', provider_replied: 'Replied', success: 'Completed', no_response: 'No response', cancelled: 'Cancelled'}
   }
@@ -114,16 +114,18 @@ export default function MiniAppDashboardPage() {
     fetch('/api/mini-app/dashboard', {headers: {'x-telegram-init-data': initData}})
       .then(async (response) => {
         const body = await response.json();
-        if (!response.ok) throw new Error(body.error ?? 'No pudimos cargar tu gabinete.');
+        if (!response.ok) {
+          if (response.status === 401) throw new Error(I18N[lang].sessionExpired);
+          throw new Error(body.error ?? I18N[lang].loadError);
+        }
         const dash = body as Dashboard;
-        // Set locale from profile
         const l = (dash.profile.locale?.startsWith('ru') ? 'ru' : dash.profile.locale?.startsWith('en') ? 'en' : 'es') as Lang;
         setLang(l);
         return dash;
       })
       .then(setDashboard)
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'No pudimos cargar tu gabinete.'));
-  }, []);
+      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : I18N[lang].loadError));
+  }, [lang]);
 
   const submitAction = async (lead: Lead, action: 'provider_opened' | 'cancelled') => {
     try {
@@ -135,7 +137,10 @@ export default function MiniAppDashboardPage() {
         body: JSON.stringify({action, idempotencyKey: crypto.randomUUID()})
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? I18N[lang].loadError);
+      if (!response.ok) {
+        if (response.status === 401) throw new Error(I18N[lang].sessionExpired);
+        throw new Error(body.error ?? I18N[lang].loadError);
+      }
       window.location.reload();
     } catch (reason) { setError(reason instanceof Error ? reason.message : I18N[lang].loadError); }
   };
