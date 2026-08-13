@@ -244,6 +244,6 @@ describe('Mini App lead detail route', () => {
     }) as any, {params: Promise.resolve({id: '00000000-0000-4000-8000-000000000005'})} as any);
 
     expect(response.status).toBe(200);
-    expect(resolveMiniAppIdentityMock.mock.calls[resolveMiniAppIdentityMock.mock.calls.length - 1][1]).toBeUndefined();
+    expect(resolveMiniAppIdentityMock.mock.calls[resolveMiniAppIdentityMock.mock.calls.length - 1][1]).toBe(600);
   });
 });
