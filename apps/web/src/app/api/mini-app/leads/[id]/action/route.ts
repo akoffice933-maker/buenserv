@@ -10,7 +10,8 @@ type RouteContext = {params: Promise<{id: string}>};
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
-    const identity = await resolveMiniAppIdentity(getMiniAppInitData(request));
+    // State-changing: short freshness window on purpose — see resolveMiniAppIdentity.
+    const identity = await resolveMiniAppIdentity(getMiniAppInitData(request), 600);
     if (!identity) return NextResponse.json({error: 'Mini App profile not found'}, {status: 404});
     const {id: leadId} = await context.params;
     if (!z.string().uuid().safeParse(leadId).success) return NextResponse.json({error: 'Invalid lead'}, {status: 400});

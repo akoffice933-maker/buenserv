@@ -100,7 +100,15 @@ export default function MiniAppDashboardPage() {
   const router = useRouter();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [error, setError] = useState('');
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [lang, setLang] = useState<Lang>('es');
+
+  const closeMiniApp = () => {
+    try {
+      const w = window as unknown as {Telegram?: {WebApp?: {close?: () => void}}};
+      w.Telegram?.WebApp?.close?.();
+    } catch { /* ignore — nothing else we can do from here */ }
+  };
 
   useEffect(() => {
     // Expand the Mini App to full screen
@@ -110,14 +118,14 @@ export default function MiniAppDashboardPage() {
     } catch { /* ignore */ }
     const initData = getTelegramInitData();
     if (!initData) {
-      setError('Abrí tu gabinete desde el bot de BuenServ.');
+      setError(I18N.es.noSession);
       return;
     }
     fetch('/api/mini-app/dashboard', {headers: {'x-telegram-init-data': initData}})
       .then(async (response) => {
         const body = await response.json();
         if (!response.ok) {
-          if (response.status === 401) throw new Error(I18N[lang].sessionExpired);
+          if (response.status === 401) { setSessionExpired(true); throw new Error(I18N[lang].sessionExpired); }
           throw new Error(body.error ?? I18N[lang].loadError);
         }
         const dash = body as Dashboard;
@@ -140,7 +148,7 @@ export default function MiniAppDashboardPage() {
       });
       const body = await response.json();
       if (!response.ok) {
-        if (response.status === 401) throw new Error(I18N[lang].sessionExpired);
+        if (response.status === 401) { setSessionExpired(true); throw new Error(I18N[lang].sessionExpired); }
         throw new Error(body.error ?? I18N[lang].loadError);
       }
       window.location.reload();
@@ -153,7 +161,11 @@ export default function MiniAppDashboardPage() {
 
   const t = I18N[lang];
   const shell: React.CSSProperties = {minHeight: '100vh', padding: 16, display: 'grid', gap: 16, background: 'var(--tg-theme-bg-color, #fff)', color: 'var(--tg-theme-text-color, #111)'};
-  if (error) return <main style={shell}><h1 style={{fontSize: 22, margin: 0}}>BuenServ</h1><p>{error}</p></main>;
+  if (error) return <main style={shell}>
+    <h1 style={{fontSize: 22, margin: 0}}>BuenServ</h1>
+    <p>{error}</p>
+    {sessionExpired && <button onClick={closeMiniApp} style={{padding: '10px 16px', borderRadius: 10, border: 'none', background: 'var(--tg-theme-button-color, #2481cc)', color: 'var(--tg-theme-button-text-color, #fff)', fontWeight: 600}}>{t.reopen}</button>}
+  </main>;
   if (!dashboard) return <main style={shell}><p>{t.loading}</p></main>;
 
   return <main style={shell}>
