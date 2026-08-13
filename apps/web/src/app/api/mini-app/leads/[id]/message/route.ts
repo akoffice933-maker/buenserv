@@ -12,7 +12,8 @@ type RouteContext = {params: Promise<{id: string}>};
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
-    const identity = await resolveMiniAppIdentity(getMiniAppInitData(request));
+    // Sending a message mutates state; require short freshness window.
+    const identity = await resolveMiniAppIdentity(getMiniAppInitData(request), 600);
     if (!identity) return NextResponse.json({error: 'Mini App profile not found'}, {status: 404});
 
     const {id: leadId} = await context.params;
