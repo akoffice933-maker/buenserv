@@ -27,7 +27,8 @@ function panelKeyboard(): InlineKeyboard {
   return [
     [{text: '🧰 Модерация', callback_data: 'adm:moderation'}, {text: '🚩 Жалобы', callback_data: 'adm:reports'}],
     [{text: '💬 Поддержка', callback_data: 'adm:support'}, {text: '📋 Заявки', callback_data: 'adm:leads'}],
-    [{text: '📊 Сводка', callback_data: 'adm:summary'}, {text: '🔄 Обновить', callback_data: 'adm:panel'}]
+    [{text: '📊 Сводка', callback_data: 'adm:summary'}, {text: '🚨 Алерты', callback_data: 'adm:alerts'}],
+    [{text: '🔄 Обновить', callback_data: 'adm:panel'}]
   ];
 }
 
@@ -231,6 +232,48 @@ async function showSummary(supabase: ReturnType<typeof createAdminClient>, token
     `📋 Заявки без ответа >24ч: <b>${s.staleLeads}</b>\n` +
     `📨 Outbox errors: <b>${s.outboxErrors}</b>`;
   const kb: InlineKeyboard = [[{text: '🔄 Обновить', callback_data: 'adm:summary'}, {text: '← Панель', callback_data: 'adm:panel'}]];
+  if (messageId) await editAdminMessage(token, chatId, messageId, text, kb);
+  else await sendAdminMessage(token, chatId, text, kb);
+}
+
+// ─── Operational alerts ─────────────────────────────────────────────────────
+
+async function showOperationalAlerts(supabase: ReturnType<typeof createAdminClient>, token: string, chatId: number, messageId?: number) {
+  const [pendingProviders, openReports, openSupport, failedOutbox, staleLeads] = await Promise.all([
+    supabase.from('providers').select('id,slug,created_at').eq('status', 'pending').order('created_at', {ascending: false}).limit(5),
+    supabase.from('reports').select('id,reason,created_at').eq('status', 'open').order('created_at', {ascending: false}).limit(5),
+    supabase.from('support_requests').select('id,details,created_at').eq('status', 'open').order('created_at', {ascending: false}).limit(5),
+    supabase.from('notification_outbox').select('id,notification_type,last_error').eq('status', 'permanently_failed').order('created_at', {ascending: false}).limit(5),
+    supabase.from('leads').select('id,created_at,status').eq('status', 'contacted').lt('provider_contacted_at', new Date(Date.now() - 24 * 3600 * 1000).toISOString()).order('created_at', {ascending: false}).limit(5)
+  ]);
+
+  let text = `<b>🚨 Операционные алерты</b>\n\n`;
+
+  text += `🧰 На модерации: <b>${pendingProviders.data?.length ?? 0}</b>\n`;
+  for (const p of pendingProviders.data ?? []) text += `· ${p.slug} (${new Date(p.created_at).toLocaleDateString('ru-RU')})\n`;
+  text += '\n';
+
+  text += `🚩 Открытые жалобы: <b>${openReports.data?.length ?? 0}</b>\n`;
+  for (const r of openReports.data ?? []) text += `· ${r.reason}\n`;
+  text += '\n';
+
+  text += `💬 Открытые обращения: <b>${openSupport.data?.length ?? 0}</b>\n`;
+  for (const s of openSupport.data ?? []) text += `· ${(s.details ?? '').slice(0, 40)}\n`;
+  text += '\n';
+
+  text += `📨 Outbox permanently failed: <b>${failedOutbox.data?.length ?? 0}</b>\n`;
+  for (const o of failedOutbox.data ?? []) text += `· ${o.notification_type} — ${o.last_error ?? ''}\n`;
+  text += '\n';
+
+  text += `⏰ Заявки без ответа >24ч: <b>${staleLeads.data?.length ?? 0}</b>\n`;
+  for (const l of staleLeads.data ?? []) text += `· ${l.status} (${new Date(l.created_at).toLocaleDateString('ru-RU')})\n`;
+
+  const kb: InlineKeyboard = [
+    [{text: '🧰 Модерация', callback_data: 'adm:moderation'}, {text: '🚩 Жалобы', callback_data: 'adm:reports'}],
+    [{text: '💬 Поддержка', callback_data: 'adm:support'}, {text: '📋 Заявки', callback_data: 'adm:leads'}],
+    [{text: '🔄 Обновить', callback_data: 'adm:alerts'}, {text: '← Панель', callback_data: 'adm:panel'}]
+  ];
+
   if (messageId) await editAdminMessage(token, chatId, messageId, text, kb);
   else await sendAdminMessage(token, chatId, text, kb);
 }
@@ -455,6 +498,10 @@ async function handleCallback(
         await showSummary(supabase, token, chatId, messageId);
         break;
       }
+      case 'alerts': {
+        await showOperationalAlerts(supabase, token, chatId, messageId);
+        break;
+      }
       default:
         await answerCallbackQuery(token, callbackId, 'Неизвестная команда');
     }
@@ -604,6 +651,10 @@ export async function POST(request: NextRequest) {
       }
       case '/summary': {
         await showSummary(supabase, adminToken, chatId);
+        break;
+      }
+      case '/alerts': {
+        await showOperationalAlerts(supabase, adminToken, chatId);
         break;
       }
       case '/cancel': {
