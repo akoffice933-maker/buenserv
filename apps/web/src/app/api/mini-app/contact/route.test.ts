@@ -91,9 +91,9 @@ describe('Mini App contact route', () => {
     };
     const {providerQuery} = buildSupabaseMock(provider);
 
-    const response = await GET(new Request('http://localhost/api/mini-app/contact/provider-1', {
+    const response = await GET(new Request('http://localhost/api/mini-app/contact?providerId=provider-1', {
       headers: {'x-telegram-init-data': 'test-init-data'}
-    }) as any, {params: Promise.resolve({providerId: 'provider-1'})});
+    }) as any);
     expect(response.status).toBe(200);
     const payload = await response.json();
     expect(payload.provider.categories[0].slug).toBe('limpieza');

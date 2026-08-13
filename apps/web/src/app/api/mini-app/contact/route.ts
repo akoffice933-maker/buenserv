@@ -11,16 +11,14 @@ const contactBody = z.object({
   idempotencyKey: z.string().uuid()
 });
 
-type RouteContext = {params: Promise<{providerId: string}>};
-
-// GET /api/mini-app/contact/[providerId] — returns the provider's available
+// GET /api/mini-app/contact?providerId=... — returns the provider's available
 // categories and barrios so the customer can make an explicit choice.
-export async function GET(request: NextRequest, context: RouteContext) {
+export async function GET(request: NextRequest) {
   try {
     const identity = await resolveMiniAppIdentity(getMiniAppInitData(request), 3600);
     if (!identity) return NextResponse.json({error: 'Mini App profile not found'}, {status: 404});
 
-    const {providerId} = await context.params;
+    const providerId = request.nextUrl.searchParams.get('providerId') ?? '';
     if (!z.string().uuid().safeParse(providerId).success) return NextResponse.json({error: 'Invalid provider'}, {status: 400});
 
     const supabase = createAdminClient();

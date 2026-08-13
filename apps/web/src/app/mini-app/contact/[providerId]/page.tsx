@@ -131,7 +131,7 @@ export default function ContactPage() {
       setLoading(false);
       return;
     }
-    fetch(`/api/mini-app/contact/${providerId}`, {headers: {'x-telegram-init-data': initData}})
+    fetch(`/api/mini-app/contact?providerId=${encodeURIComponent(providerId)}`, {headers: {'x-telegram-init-data': initData}})
       .then(async (response) => {
         const body = await response.json();
         if (!response.ok) throw new Error(body.error ?? I18N.es.error);
