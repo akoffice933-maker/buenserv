@@ -7,11 +7,7 @@ begin transaction read only;
 -- Lead existence check (safe summary)
 select
   case when exists(
-    select 1 from public.lead_messages where lead_id = :'lead_id'::uuid
-  ) or exists(
-    select 1 from public.lead_events where lead_id = :'lead_id'::uuid
-  ) or exists(
-    select 1 from public.notification_outbox where lead_id = :'lead_id'::uuid
+    select 1 from public.leads where id = :'lead_id'::uuid
   ) then 'yes' else 'no' end as lead_found;
 
 -- Messages counts (do NOT reveal message bodies or other PII)
