@@ -2,6 +2,7 @@ import {NextRequest, NextResponse} from 'next/server';
 import {z} from 'zod';
 import {createAdminClient} from '@/lib/supabase/admin';
 import {getMiniAppInitData, resolveMiniAppIdentity} from '@/lib/telegram/mini-app-auth';
+import {checkRateLimit} from '@/lib/rate-limit';
 
 const contactBody = z.object({
   providerId: z.string().uuid(),
@@ -66,6 +67,12 @@ export async function POST(request: NextRequest) {
 
     const parsed = contactBody.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({error: 'Invalid request'}, {status: 400});
+
+    // Rate limit lead creation per customer to prevent abuse.
+    const rate = await checkRateLimit(`contact:${identity.profileId}`, 20, 3600);
+    if (!rate.allowed) {
+      return NextResponse.json({error: 'Too many requests'}, {status: 429, headers: {'Retry-After': String(rate.retryAfterSeconds ?? 60)}});
+    }
 
     const supabase = createAdminClient();
     const {providerId, categoryId, barrioId, description, idempotencyKey} = parsed.data;
