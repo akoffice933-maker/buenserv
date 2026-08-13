@@ -26,3 +26,6 @@ coverage/
 
 # TypeScript incremental state
 *.tsbuildinfo
+
+# Database backup dumps
+backup_before_*.dump
