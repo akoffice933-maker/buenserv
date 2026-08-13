@@ -209,7 +209,7 @@ describe('Mini App lead detail route', () => {
           profiles: {display_name: 'Mariana López'}
         }
       },
-      [{event_type: 'completed', actor_type: 'provider', created_at: '2026-01-01T00:00:00Z', metadata: {}}],
+      [{event_type: 'customer_completion_confirmed', actor_type: 'customer', created_at: '2026-01-01T00:00:00Z', metadata: {}}],
       []
     );
 

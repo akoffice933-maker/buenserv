@@ -73,7 +73,8 @@ const I18N: Record<Lang, {
   actionProviderOpened: string;
   actionProviderReplied: string;
   actionCustomerReplied: string;
-  actionCompleted: string;
+  actionProviderServiceCompleted: string;
+  actionCustomerCompletionConfirmed: string;
   actionCancelled: string;
   sessionExpired: string;
 }> = {
@@ -102,7 +103,8 @@ const I18N: Record<Lang, {
     actionProviderOpened: 'Abrir solicitud',
     actionProviderReplied: 'Responder',
     actionCustomerReplied: 'Cliente respondió',
-    actionCompleted: 'Completar',
+    actionProviderServiceCompleted: 'Marcar como realizado',
+    actionCustomerCompletionConfirmed: 'Confirmar finalización',
     actionCancelled: 'Cancelar'
   },
   ru: {
@@ -130,7 +132,8 @@ const I18N: Record<Lang, {
     actionProviderOpened: 'Открыть заявку',
     actionProviderReplied: 'Ответить',
     actionCustomerReplied: 'Клиент ответил',
-    actionCompleted: 'Завершить',
+    actionProviderServiceCompleted: 'Отметить выполненным',
+    actionCustomerCompletionConfirmed: 'Подтвердить завершение',
     actionCancelled: 'Отменить'
   },
   en: {
@@ -158,7 +161,8 @@ const I18N: Record<Lang, {
     actionProviderOpened: 'Open request',
     actionProviderReplied: 'Reply',
     actionCustomerReplied: 'Customer replied',
-    actionCompleted: 'Complete',
+    actionProviderServiceCompleted: 'Mark as done',
+    actionCustomerCompletionConfirmed: 'Confirm completion',
     actionCancelled: 'Cancel'
   }
 };
@@ -203,7 +207,7 @@ export default function LeadDetailPage() {
     return '';
   }
 
-  function submitAction(action: 'provider_opened' | 'provider_replied' | 'customer_replied' | 'completed' | 'cancelled') {
+  function submitAction(action: 'provider_opened' | 'provider_replied' | 'customer_replied' | 'provider_service_completed' | 'customer_completion_confirmed' | 'cancelled') {
     const initData = getTelegramInitData();
     if (!initData) {
       setError(I18N[lang].noSession);
@@ -446,11 +450,12 @@ export default function LeadDetailPage() {
           <h2 style={{fontSize: 18, marginBottom: 12}}>Acciones disponibles</h2>
           <div style={{display: 'flex', flexDirection: 'column', gap: 8}}>
             {lead.allowedActions.map((action, index) => {
-              const label = 
+              const label =
                 action === 'provider_opened' ? t.actionProviderOpened :
                 action === 'provider_replied' ? t.actionProviderReplied :
                 action === 'customer_replied' ? t.actionCustomerReplied :
-                action === 'completed' ? t.actionCompleted :
+                action === 'provider_service_completed' ? t.actionProviderServiceCompleted :
+                action === 'customer_completion_confirmed' ? t.actionCustomerCompletionConfirmed :
                 action === 'cancelled' ? t.actionCancelled :
                 action;
               

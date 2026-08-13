@@ -84,19 +84,23 @@ export async function GET(request: NextRequest, context: RouteContext) {
           allowedActions = ['provider_replied'];
           break;
         case 'provider_replied':
-          // Provider may complete after replying.
-          allowedActions = ['completed'];
-          break;
         case 'customer_replied':
-          // Provider may complete after customer reply.
-          allowedActions = ['completed'];
+          // Provider may mark the service as done after any reply.
+          allowedActions = ['provider_service_completed'];
+          break;
+        case 'provider_service_completed':
+          // Waiting for customer to confirm completion.
+          allowedActions = [];
+          break;
+        case 'customer_completion_confirmed':
+          allowedActions = [];
           break;
         default:
           allowedActions = [];
       }
     } else if (isCustomer) {
       switch (lastEventType) {
-        case 'completed':
+        case 'success':
         case 'cancelled':
         case 'expired':
           allowedActions = [];
@@ -106,6 +110,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
           break;
         case 'customer_replied':
           allowedActions = ['cancelled'];
+          break;
+        case 'provider_service_completed':
+          // Customer confirms the service was completed.
+          allowedActions = ['customer_completion_confirmed', 'cancelled'];
           break;
         default:
           allowedActions = ['cancelled'];
