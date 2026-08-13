@@ -13,6 +13,7 @@ export const ACTION_ROLES: Record<string, AdminRole[]> = {
   suspend_provider: ['admin'],
   take_support: ['admin', 'moderator', 'support'],
   close_support: ['admin', 'moderator', 'support'],
+  reply_support: ['admin', 'moderator', 'support'],
   retry_outbox: ['admin'],
   lead_operations: ['admin', 'moderator'],
 };

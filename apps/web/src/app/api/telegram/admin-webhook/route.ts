@@ -172,6 +172,7 @@ async function showSupport(supabase: ReturnType<typeof createAdminClient>, token
 
   const kb: InlineKeyboard = [
     [{text: '🙋 Взять себе', callback_data: `adm:take_support:${r.id}`}, {text: '✅ Закрыть', callback_data: `adm:close_support:${r.id}`}],
+    [{text: '💬 Ответить', callback_data: `adm:reply_support:${r.id}`}],
     [{text: '⏭ Следующее', callback_data: 'adm:support_next'}, {text: '← Панель', callback_data: 'adm:panel'}]
   ];
 
@@ -422,6 +423,14 @@ async function handleCallback(
         }
         break;
       }
+      case 'reply_support': {
+        if (!rbacGuard('reply_support')) break;
+        const requestId = parts.slice(2).join(':');
+        // Persist the pending reply target so the next plain-text message is treated as the reply body.
+        await setAdminPanelState(supabase, admin.profileId, 'support_reply', {requestId});
+        await editAdminMessage(token, chatId, messageId, '✍️ Напишите текст ответа клиенту. Отмена: /cancel', [[{text: '← Панель', callback_data: 'adm:panel'}]]);
+        break;
+      }
       case 'support_next': {
         await showSupport(supabase, token, chatId, messageId);
         break;
@@ -507,6 +516,45 @@ export async function POST(request: NextRequest) {
     const parts = text.split(/\s+/);
     const cmd = parts[0]?.toLowerCase() ?? '';
 
+    // Pending support reply: the next plain-text message is the reply body.
+    if (cmd !== '/cancel' && !cmd.startsWith('/')) {
+      const {data: panelState} = await supabase.from('admin_panel_states').select('current_view,context').eq('profile_id', admin.profileId).maybeSingle();
+      if (panelState?.current_view === 'support_reply') {
+        const requestId = (panelState.context as {requestId?: string} | null)?.requestId;
+        if (requestId) {
+          if (!isActionAllowed(admin.role, 'reply_support')) {
+            await sendAdminMessage(adminToken, chatId, '⛔ Недостаточно прав.');
+          } else {
+            const externalId = `admin_reply:${admin.profileId}:${requestId}:${update.update_id}`;
+            const {data: replyResult, error: replyError} = await supabase.rpc('admin_reply_support_request', {
+              p_actor_profile_id: admin.profileId,
+              p_request_id: requestId,
+              p_body: text,
+              p_external_source: 'admin_bot',
+              p_external_id: externalId
+            });
+            if (replyError) {
+              await sendAdminMessage(adminToken, chatId, '❌ Не удалось отправить ответ.');
+            } else {
+              // Deliver the reply to the customer through the public bot.
+              const customerTelegramId = Array.isArray(replyResult) ? replyResult[0]?.customer_telegram_user_id : replyResult?.customer_telegram_user_id;
+              if (customerTelegramId) {
+                const replyText = `💬 Ответ поддержки BuenServ:\n\n${text}`;
+                await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                  method: 'POST', headers: {'content-type': 'application/json'},
+                  body: JSON.stringify({chat_id: customerTelegramId, text: replyText})
+                });
+              }
+              await setAdminPanelState(supabase, admin.profileId, 'support');
+              await sendAdminMessage(adminToken, chatId, '✅ Ответ отправлен клиенту.');
+            }
+          }
+          await markProcessed();
+          return NextResponse.json({ok: true});
+        }
+      }
+    }
+
     switch (cmd) {
       case '/start': case '/help': case '/panel': {
         const panelText = await buildPanelMessage(supabase);
@@ -556,6 +604,11 @@ export async function POST(request: NextRequest) {
       }
       case '/summary': {
         await showSummary(supabase, adminToken, chatId);
+        break;
+      }
+      case '/cancel': {
+        await setAdminPanelState(supabase, admin.profileId, 'panel');
+        await sendAdminMessage(adminToken, chatId, 'Отменено.');
         break;
       }
       default:
