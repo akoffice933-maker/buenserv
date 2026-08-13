@@ -119,12 +119,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ok: true});
   }
 
-  // Customer clicks "Contact" on a provider's profile page → creates a lead
+  // Customer clicks "Contact" on a provider's profile page → opens the Mini App
+  // contact form where the customer explicitly chooses category and barrio.
   const performerId = performerProviderId(message.text);
   if (performerId) {
     const {data: targetProvider} = await supabase
       .from('providers')
-      .select('id, profile_id, provider_categories!provider_categories_provider_id_fkey(category_id), provider_barrios!provider_barrios_provider_id_fkey(barrio_id)')
+      .select('id')
       .eq('id', performerId)
       .eq('status', 'approved')
       .maybeSingle();
@@ -134,76 +135,11 @@ export async function POST(request: NextRequest) {
       await markProcessed();
       return NextResponse.json({ok: true});
     }
-    // TODO: Let customer choose category/barrio in Mini App contact form.
-    // Using first relation row as a temporary default until contact Mini App is built.
-    // This is a pilot fallback — for open launch, customer must select service context.
-    const cats = targetProvider.provider_categories as unknown as Array<{category_id: string}> | undefined;
-    const barrios = targetProvider.provider_barrios as unknown as Array<{barrio_id: string}> | undefined;
-    const categoryId = cats?.[0]?.category_id;
-    const barrioId = barrios?.[0]?.barrio_id;
-    if (!categoryId || !barrioId) {
-      const noService = locale === 'ru' ? 'Извините, у этого исполнителя пока нет доступных услуг.' : locale === 'en' ? 'Sorry, this provider has no available services yet.' : 'Lo sentimos, este prestador aún no tiene servicios disponibles.';
-      await sendTelegramMessage(env, chatId, noService);
-      await markProcessed();
-      return NextResponse.json({ok: true});
-    }
-    // Step 1: create_lead with idempotency key from update_id
-    const {data: leadId, error: leadError} = await supabase.rpc('create_lead', {
-      p_customer_profile_id: profile.id,
-      p_provider_id: targetProvider.id,
-      p_category_id: categoryId,
-      p_barrio_id: barrioId,
-      p_source: 'telegram',
-      p_source_detail: 'performer_contact',
-      p_external_source: 'telegram_webhook',
-      p_external_id: `telegram_webhook:${update.update_id}:lead`,
-      p_metadata: {channel: 'telegram_bot', action: 'contact'}
-    }) as {data: string | null; error: unknown};
-    if (leadError || !leadId) {
-      // No markProcessed, no user message — return 500 so Telegram retries.
-      // Idempotency key prevents duplicate leads on retry.
-      return NextResponse.json({error: 'create_lead failed'}, {status: 500});
-    }
-    // Step 2: customer_contacted → updates lead status to 'contacted'
-    const {error: contactedError} = await supabase.rpc('record_lead_event', {
-      p_lead_id: leadId,
-      p_event_type: 'customer_contacted',
-      p_actor_type: 'customer',
-      p_actor_profile_id: profile.id,
-      p_external_source: 'telegram_webhook',
-      p_external_id: `telegram_webhook:${update.update_id}:customer_contacted`,
-      p_metadata: {channel: 'telegram_bot'}
-    });
-    if (contactedError) {
-      // Lead exists but lifecycle couldn't advance.
-      // No markProcessed, no user message — return 500 for Telegram retry.
-      // Idempotency key prevents duplicate customer_contacted on retry.
-      return NextResponse.json({error: 'customer_contacted failed', leadId}, {status: 500});
-    }
-    // Step 3: provider_notified → creates notification_outbox record automatically.
-    // Actor is 'system' because the automated contact flow notifies the provider,
-    // not the customer directly. No actor_profile_id for system actions.
-    const {error: notifiedError} = await supabase.rpc('record_lead_event', {
-      p_lead_id: leadId,
-      p_event_type: 'provider_notified',
-      p_actor_type: 'system',
-      p_actor_profile_id: null,
-      p_external_source: 'telegram_webhook',
-      p_external_id: `telegram_webhook:${update.update_id}:provider_notified`,
-      p_metadata: {channel: 'telegram_bot'}
-    });
-    if (notifiedError) {
-      // Lead + contacted exist but outbox wasn't created.
-      // No markProcessed, no user message — return 500 for Telegram retry.
-      // Idempotency keys ensure create_lead and customer_contacted return
-      // previous results; only provider_notified is retried.
-      return NextResponse.json({error: 'provider_notified failed', leadId}, {status: 500});
-    }
-    // All three RPCs succeeded — full lifecycle transition
-    const contactSent = locale === 'ru' ? '✅ Ваш запрос отправлен исполнителю. Он скоро ответит.' : locale === 'en' ? '✅ Your request has been sent to the provider. They will reply soon.' : '✅ Tu solicitud fue enviada al prestador. Te responderá pronto.';
-    await sendTelegramMessage(env, chatId, contactSent);
+    const contactUrl = `${env.NEXT_PUBLIC_APP_URL}/mini-app/contact/${targetProvider.id}`;
+    const prompt = locale === 'ru' ? 'Выберите услугу и район, чтобы отправить запрос исполнителю.' : locale === 'en' ? 'Choose a service and neighbourhood to send your request to the provider.' : 'Elegí el servicio y el barrio para enviar tu solicitud al prestador.';
+    await sendTelegramMiniApp(env, chatId, prompt, contactUrl);
     await markProcessed();
-    return NextResponse.json({ok: true, leadId});
+    return NextResponse.json({ok: true});
   }
 
   const {data: supportSession} = await supabase.from('telegram_support_sessions').select('profile_id').eq('profile_id', profile.id).maybeSingle();
