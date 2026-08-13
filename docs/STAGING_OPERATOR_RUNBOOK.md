@@ -70,12 +70,24 @@ Troubleshooting:
 --------------------------
 Purpose: run `verify-lead.sql` read-only checks for a single test lead.
 
-Commands (operator provides `PGCONN` locally; DO NOT paste it in chat):
+Commands (operator provides `PGCONN` or `PGSERVICE` locally; DO NOT paste it in chat):
 
-PowerShell example:
+Credential guidance:
+
+- Long-term: prefer a local `pg_service.conf` entry and use `PGSERVICE` to avoid passing full URLs on the command line. Example (operator-managed, NOT in repo):
+
+  ```text
+  PGSERVICE=buenserv_staging_readonly
+  ```
+
+  Then run the verifier with `PGSERVICE` set in the environment.
+
+- Short-term / ad-hoc: set `PGCONN` locally from a secure credential store — do NOT paste the URL into chat, docs, or shell history. Do NOT use `Read-Host -AsSecureString` for `PGCONN` as that produces a PowerShell `SecureString` which is not a plain connection URL.
+
+Example (preferred):
 
 ```powershell
-$env:PGCONN = Read-Host -AsSecureString "Enter PGCONN (do not paste anywhere)"
+$env:PGSERVICE = "buenserv_staging_readonly"
 pwsh ./scripts/smoke/run-smoke.ps1 -LeadId <LEAD_UUID>
 ```
 
@@ -102,11 +114,16 @@ Steps:
   - `LEAD_SMOKE_CUSTOMER_PROFILE_ID` (internal test customer)
   - Other `LEAD_SMOKE_*` as required by `staging-provider-reply-smoke.mjs`
 
-- Run the smoke script locally:
+- Run the smoke script from the expected working directory so `.env.local` and relative paths resolve correctly:
 
-  node apps/web/scripts/staging-provider-reply-smoke.mjs
+```bash
+cd apps/web
+node scripts/staging-provider-reply-smoke.mjs
+# or if there is an npm script
+# npm run smoke:provider-reply
+```
 
-Expected outputs (script prints safe IDs only):
+Expected outputs (script may print internal lead UUIDs for evidence; DO NOT paste real provider/customer IDs into tickets, docs, or chat):
 - Test lead created → outputs `lead_id: <uuid>`.
 - `provider_replied` event created and a `notification_outbox` row created with `notification_type = customer_provider_reply` and `status = 'pending'`.
 
@@ -138,6 +155,27 @@ Steps:
 
 Expected outputs:
 - Admin UI renders lead timeline and outbox status.
+
+Admin Bot smoke (Telegram)
+--------------------------
+Purpose: validate the Telegram admin surface (admin bot) used for operational moderation and support.
+
+Steps (run from admin/staging operator account):
+1. Start the admin bot by sending `/start` in Telegram to the admin bot account.
+2. Open moderation menu (e.g. `🧰 Модерация`) and confirm menu items render.
+3. Open `🚩 Жалобы` (reports) and inspect a sample ticket.
+4. Open `💬 Поддержка` (support) and verify support tickets display correctly.
+5. Open `📋 Заявки` (leads) and inspect a lead summary/timeline.
+6. Open `📊 Сводка` (summary) to verify operational metrics.
+7. Use refresh/update action to confirm live updates.
+8. Verify a non-admin account is denied admin actions.
+9. Verify support role cannot approve/reject/suspend providers (attempt and expect a safe denial).
+10. Verify expired/reused admin action tokens are rejected safely.
+
+Expected outputs:
+- Admin bot responds with menus and data.
+- Access denied responses for non-admin accounts.
+- Support replies persist and appear in admin UI / audit logs.
 
 7) Negative security tests
 --------------------------
