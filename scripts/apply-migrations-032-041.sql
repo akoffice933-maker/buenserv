@@ -481,6 +481,7 @@ $$;
 revoke all on function public.enqueue_admin_alert(text, jsonb) from public, anon, authenticated;
 grant execute on function public.enqueue_admin_alert(text, jsonb) to service_role;
 
+drop function if exists public.claim_notification_outbox(integer);
 create or replace function public.claim_notification_outbox(p_limit integer default 20)
 returns table (id uuid, notification_type text, payload jsonb, telegram_user_id bigint, attempt_count integer, bot_kind text)
 language plpgsql security definer set search_path = public as $$
@@ -603,6 +604,7 @@ create trigger support_request_messages_immutable
   before update or delete on public.support_request_messages
   for each row execute function public.prevent_support_message_mutation();
 
+drop function if exists public.admin_reply_support_request(uuid, uuid, text, text, text);
 create or replace function public.admin_reply_support_request(
   p_actor_profile_id uuid,
   p_request_id uuid,
