@@ -2,7 +2,7 @@ import {timingSafeEqual} from 'node:crypto';
 import {NextRequest, NextResponse} from 'next/server';
 import {createAdminClient} from '@/lib/supabase/admin';
 import {getServerEnv} from '@/lib/env';
-import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, parseReportReason, rateLimitCopyKey, sendTelegramMessage, sendTelegramKeyboard, removeTelegramKeyboard, sendTelegramMiniApp, sendMainMenu, editToMainMenu, editToLanguageMenu, detectLocaleFromTelegram, categoryKeyboard, barrioKeyboard, type BotLocale, type OnboardingStep} from '@/lib/telegram/provider-onboarding';
+import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategory, parseReportReason, rateLimitCopyKey, sendTelegramMessage, sendTelegramKeyboard, removeTelegramKeyboard, sendTelegramMiniApp, sendMainMenu, sendLanguageMenu, editToMainMenu, editToLanguageMenu, detectLocaleFromTelegram, categoryKeyboard, barrioKeyboard, type BotLocale, type OnboardingStep} from '@/lib/telegram/provider-onboarding';
 import {performerProviderId, reportProviderId, startPayload, startsProviderOnboarding, startsSupport} from '@/lib/telegram/start-payload';
 
 type TelegramUser = {id: number; first_name?: string; last_name?: string; language_code?: string};
@@ -88,9 +88,14 @@ export async function POST(request: NextRequest) {
   const payload = startPayload(msgText);
   if (payload) await supabase.from('telegram_start_events').insert({update_id: update.update_id, profile_id: profile.id, payload});
 
-  // Welcome / start — localized main menu (find a service, offer services, cabinet, help, language).
+  // Welcome / start — for a brand-new user (no saved locale yet) ask for a language
+  // first so the whole experience is in their language; otherwise show the main menu.
   if (/^\/start$/i.test(msgText)) {
-    await sendMainMenu(env, chatId, locale);
+    if (!existingProfile) {
+      await sendLanguageMenu(env, chatId);
+    } else {
+      await sendMainMenu(env, chatId, locale);
+    }
     await markProcessed(); return NextResponse.json({ok: true});
   }
 

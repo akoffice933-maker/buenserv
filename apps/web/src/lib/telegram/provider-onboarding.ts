@@ -239,6 +239,15 @@ export async function editToLanguageMenu(env: ServerEnv, chatId: number, message
   if (!response.ok) throw new Error(`Telegram editToLanguageMenu failed: ${response.status}`);
 }
 
+/** Send a fresh language-selection message (used on first /start for new users). */
+export async function sendLanguageMenu(env: ServerEnv, chatId: number) {
+  const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: 'POST', headers: {'content-type': 'application/json'},
+    body: JSON.stringify({chat_id: chatId, text: 'Elegí un idioma / Выберите язык / Choose a language', reply_markup: languageKeyboard()})
+  });
+  if (!response.ok) throw new Error(`Telegram sendLanguageMenu failed: ${response.status}`);
+}
+
 /** Resolve BotLocale from a raw Telegram language_code, used only for brand-new profiles.
  *  Once a profile exists, its saved `profiles.locale` is the source of truth — see the
  *  webhook handler, which only calls this when no existing profile locale was found. */
