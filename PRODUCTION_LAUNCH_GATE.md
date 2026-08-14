@@ -178,10 +178,65 @@ npm audit
 ## Текущий source baseline
 
 ```text
+74d3d2f fix(P1): atomic rate limit RPC, support reply immutable/audited/outbox-safe
+b62fd7d fix(P0): contact description as initial message, completion notification types, admin push channel, escape alerts
+362f1ed docs: add versioned production launch gate checklist
 a72db75 feat(ops): server-side rate limiting for public write endpoints
-2f75f4d fix(contact): read providerId from query string, not dynamic route param
 9175cb7 feat(admin-bot): operational alerts
 6b0fa24 feat(admin-bot): support reply
 90c78a9 feat(leads): explicit customer contact form
 827e606 feat(leads): completion semantics
 ```
+
+## Корректирующие миграции (применить в порядке 032→039)
+
+```text
+035 create_contact_lead — persists customer description as initial lead message
+036 completion notification types (customer_provider_completed / provider_customer_confirmed)
+037 admin alert delivery channel (bot_kind=admin_bot) + enqueue_admin_alert + claim bot_kind
+038 atomic consume_rate_limit RPC
+039 support reply immutable/audited/outbox-safe (customer_support_reply)
+```
+
+### Требуемый staging migration smoke (нельзя доказать build'ом)
+
+После применения 032–039 на staging выполнить:
+
+```sql
+-- enum values present
+select enumlabel from pg_enum join pg_type on pg_type.oid = pg_enum.enumtypid
+where pg_type.typname = 'lead_event_type' order by enumlabel;
+
+-- record_lead_event replaced (completion mapping)
+select proname from pg_proc where proname = 'record_lead_event';
+
+-- create_contact_lead persists initial message
+call/branch: create_contact_lead(...) → verify lead_messages row exists;
+
+-- completion enqueues correct notification type
+provider_service_completed → notification_outbox.notification_type = 'customer_provider_completed';
+customer_completion_confirmed → 'provider_customer_confirmed';
+
+-- admin push channel
+enqueue_admin_alert(...) → outbox row bot_kind = 'admin_bot';
+
+-- atomic rate limit
+consume_rate_limit(key, 3, 60) 4x → allowed=false on 4th;
+
+-- support reply immutability
+update support_request_messages → raises 'support_request_messages are immutable';
+```
+
+**Использовать `ENABLE REPLICA` on job runs if test harness is available.**
+
+## Статус Фаз B–C (после P0/P1-исправлений)
+
+```text
+B1 explicit category/barrio + description visible: ✅ (create_contact_lead)
+B2 completion lifecycle events + notification semantics: ✅ (migration 036)
+B3 admin support reply persisted + durable outbox delivery + audit: ✅ (migration 039)
+B4 admin notifications: push channel через outbox bot_kind=admin_bot ✅ (+ /alerts pull dashboard)
+C rate limiting: ✅ atomic consume_rate_limit RPC
+```
+
+Не запускать broad pilot до native E2E и staging smoke.
