@@ -250,23 +250,23 @@ async function showOperationalAlerts(supabase: ReturnType<typeof createAdminClie
   let text = `<b>🚨 Операционные алерты</b>\n\n`;
 
   text += `🧰 На модерации: <b>${pendingProviders.data?.length ?? 0}</b>\n`;
-  for (const p of pendingProviders.data ?? []) text += `· ${p.slug} (${new Date(p.created_at).toLocaleDateString('ru-RU')})\n`;
+  for (const p of pendingProviders.data ?? []) text += `· ${escapeHtml(p.slug)} (${new Date(p.created_at).toLocaleDateString('ru-RU')})\n`;
   text += '\n';
 
   text += `🚩 Открытые жалобы: <b>${openReports.data?.length ?? 0}</b>\n`;
-  for (const r of openReports.data ?? []) text += `· ${r.reason}\n`;
+  for (const r of openReports.data ?? []) text += `· ${escapeHtml(r.reason)}\n`;
   text += '\n';
 
   text += `💬 Открытые обращения: <b>${openSupport.data?.length ?? 0}</b>\n`;
-  for (const s of openSupport.data ?? []) text += `· ${(s.details ?? '').slice(0, 40)}\n`;
+  for (const s of openSupport.data ?? []) text += `· ${escapeHtml((s.details ?? '').slice(0, 40))}\n`;
   text += '\n';
 
   text += `📨 Outbox permanently failed: <b>${failedOutbox.data?.length ?? 0}</b>\n`;
-  for (const o of failedOutbox.data ?? []) text += `· ${o.notification_type} — ${o.last_error ?? ''}\n`;
+  for (const o of failedOutbox.data ?? []) text += `· ${escapeHtml(o.notification_type)} — ${escapeHtml(o.last_error ?? '')}\n`;
   text += '\n';
 
   text += `⏰ Заявки без ответа >24ч: <b>${staleLeads.data?.length ?? 0}</b>\n`;
-  for (const l of staleLeads.data ?? []) text += `· ${l.status} (${new Date(l.created_at).toLocaleDateString('ru-RU')})\n`;
+  for (const l of staleLeads.data ?? []) text += `· ${escapeHtml(l.status)} (${new Date(l.created_at).toLocaleDateString('ru-RU')})\n`;
 
   const kb: InlineKeyboard = [
     [{text: '🧰 Модерация', callback_data: 'adm:moderation'}, {text: '🚩 Жалобы', callback_data: 'adm:reports'}],

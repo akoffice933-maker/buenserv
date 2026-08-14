@@ -158,6 +158,8 @@ export async function POST(request: NextRequest) {
     }
     await supabase.from('telegram_support_sessions').delete().eq('profile_id', profile.id);
     await sendTelegramMessage(env, chatId, onboardingText(locale, 'supportSubmitted'));
+    // Push an admin alert through the outbox so the admin bot is notified.
+    await supabase.rpc('enqueue_admin_alert', {p_notification_type: 'admin_new_support_request', p_payload: {details: details.slice(0, 200)}});
     await markProcessed(); return NextResponse.json({ok: true});
   }
 
@@ -181,6 +183,8 @@ export async function POST(request: NextRequest) {
     if (reportError) return NextResponse.json({error: 'Report submission failed'}, {status: 500});
     await supabase.from('telegram_report_sessions').delete().eq('profile_id', profile.id);
     await sendTelegramMessage(env, chatId, onboardingText(locale, 'reportSubmitted'));
+    // Push an admin alert through the outbox so the admin bot is notified.
+    await supabase.rpc('enqueue_admin_alert', {p_notification_type: 'admin_new_report', p_payload: {reason: reportSession.reason, details: details.slice(0, 200)}});
     await markProcessed(); return NextResponse.json({ok: true});
   }
 

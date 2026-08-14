@@ -97,50 +97,22 @@ export async function POST(request: NextRequest) {
 
     const externalId = `mini_app_contact:${identity.profileId}:${providerId}:${idempotencyKey}`;
 
-    // Step 1: create_lead with explicit category/barrio.
-    const {data: leadId, error: leadError} = await supabase.rpc('create_lead', {
+    // Atomic: create lead + persist customer request as initial message + advance
+    // lifecycle (customer_contacted, provider_notified) + enqueue provider outbox.
+    const {data: leadId, error: leadError} = await supabase.rpc('create_contact_lead', {
       p_customer_profile_id: identity.profileId,
       p_provider_id: providerId,
       p_category_id: categoryId,
       p_barrio_id: barrioId,
-      p_source: 'mini_app',
-      p_source_detail: 'customer_contact',
+      p_description: description,
       p_external_source: 'mini_app_contact',
       p_external_id: externalId,
-      p_metadata: {channel: 'mini_app', description}
+      p_metadata: {channel: 'mini_app'}
     });
     if (leadError) {
       const known = ['provider_not_found', 'external_idempotency_required'];
       const status = known.some((item) => leadError.message.includes(item)) ? 409 : 500;
-      return NextResponse.json({error: status === 409 ? 'Unable to create request' : 'Unable to create request'}, {status});
-    }
-
-    // Step 2: customer_contacted → status = contacted.
-    const {error: contactedError} = await supabase.rpc('record_lead_event', {
-      p_lead_id: leadId,
-      p_event_type: 'customer_contacted',
-      p_actor_type: 'customer',
-      p_actor_profile_id: identity.profileId,
-      p_external_source: 'mini_app_contact',
-      p_external_id: `${externalId}:customer_contacted`,
-      p_metadata: {channel: 'mini_app'}
-    });
-    if (contactedError) {
-      return NextResponse.json({error: 'Unable to create request'}, {status: 500});
-    }
-
-    // Step 3: provider_notified → creates outbox record automatically.
-    const {error: notifiedError} = await supabase.rpc('record_lead_event', {
-      p_lead_id: leadId,
-      p_event_type: 'provider_notified',
-      p_actor_type: 'system',
-      p_actor_profile_id: null,
-      p_external_source: 'mini_app_contact',
-      p_external_id: `${externalId}:provider_notified`,
-      p_metadata: {channel: 'mini_app'}
-    });
-    if (notifiedError) {
-      return NextResponse.json({error: 'Unable to create request'}, {status: 500});
+      return NextResponse.json({error: 'Unable to create request'}, {status});
     }
 
     return NextResponse.json({ok: true, leadId});

@@ -12,4 +12,14 @@ describe('deliver outbox copy', () => {
     const payload = buildNotificationPayload('customer_provider_reply');
     expect(payload.text).toContain('Un prestador respondió');
   });
+
+  it('uses completion-specific copy for provider_service_completed', () => {
+    const payload = buildNotificationPayload('customer_provider_completed');
+    expect(payload.text).toContain('marcó el servicio como realizado');
+  });
+
+  it('uses completion-specific copy for customer_completion_confirmed', () => {
+    const payload = buildNotificationPayload('provider_customer_confirmed');
+    expect(payload.text).toContain('confirmó que el servicio fue realizado');
+  });
 });

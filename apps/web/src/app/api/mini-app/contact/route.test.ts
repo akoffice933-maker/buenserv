@@ -52,14 +52,13 @@ describe('Mini App contact route', () => {
     }) as any);
 
     expect(response.status).toBe(200);
-    expect(rpc).toHaveBeenCalledWith('create_lead', expect.objectContaining({
+    expect(rpc).toHaveBeenCalledWith('create_contact_lead', expect.objectContaining({
       p_customer_profile_id: 'customer-1',
       p_provider_id: 'provider-1',
       p_category_id: 'cat-1',
-      p_barrio_id: 'bar-1'
+      p_barrio_id: 'bar-1',
+      p_description: 'necesito limpieza'
     }));
-    const eventTypes = rpcs.filter((r) => r.fn === 'record_lead_event').map((r) => r.args.p_event_type);
-    expect(eventTypes).toEqual(['customer_contacted', 'provider_notified']);
   });
 
   it('rejects a category/barrio the provider does not offer', async () => {
