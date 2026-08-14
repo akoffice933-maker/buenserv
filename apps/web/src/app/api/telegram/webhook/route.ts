@@ -188,6 +188,32 @@ export async function POST(request: NextRequest) {
     await markProcessed(); return NextResponse.json({ok: true});
   }
 
+  // Customer continuing an open support thread: any non-command text is appended to
+  // the support request and notifies support staff.
+  if (!msgText.startsWith('/')) {
+    const {data: openSupport} = await supabase
+      .from('support_requests')
+      .select('id')
+      .eq('profile_id', profile.id)
+      .in('status', ['open', 'reviewing'])
+      .order('created_at', {ascending: false})
+      .limit(1)
+      .maybeSingle();
+    if (openSupport) {
+      const {error: replyError} = await supabase.rpc('customer_reply_support_request', {
+        p_profile_id: profile.id,
+        p_body: msgText,
+        p_external_source: 'telegram_webhook',
+        p_external_id: `telegram_webhook:${update.update_id}:support_reply`
+      });
+      if (!replyError) {
+        const ack = locale === 'ru' ? '✅ Сообщение отправлено в поддержку.' : locale === 'en' ? '✅ Message sent to support.' : '✅ Mensaje enviado al soporte.';
+        await sendTelegramMessage(env, chatId, ack);
+        await markProcessed(); return NextResponse.json({ok: true});
+      }
+    }
+  }
+
   const {data: session} = await supabase.from('provider_onboarding_sessions').select('step,draft').eq('profile_id', profile.id).maybeSingle();
   if (!session) { await markProcessed(); return NextResponse.json({ok: true}); }
   const draft = (session.draft ?? {}) as Draft; let next: OnboardingStep | null = null; let reply = '';

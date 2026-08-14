@@ -18,6 +18,7 @@ const I18N: Record<Lang, {
   greeting: string; providerProfile: string; becomeProvider: string; becomeProviderDesc: string;
   incomingRequests: string; myRequests: string; empty: string; openRequest: string; cancelRequest: string;
   noSession: string; sessionExpired: string; reopen: string; loadError: string; loading: string;
+  openLabel: string;
   providerStatus: Record<string, string>; leadStatus: Record<string, string>;
 }> = {
   es: {
@@ -26,6 +27,7 @@ const I18N: Record<Lang, {
     incomingRequests: 'Solicitudes recibidas', myRequests: 'Mis solicitudes',
     empty: 'Todavía no hay solicitudes.', openRequest: 'Abrir solicitud', cancelRequest: 'Cancelar solicitud',
     noSession: 'Abrí tu gabinete desde el bot de BuenServ.', sessionExpired: 'La sesión venció. Abrí tu gabinete nuevamente desde el bot de BuenServ.', reopen: 'Volver al bot', loadError: 'No pudimos cargar tu gabinete.', loading: 'Cargando…',
+    openLabel: 'Abrir',
     providerStatus: {draft: 'Borrador', pending: 'En moderación', approved: 'Aprobado', rejected: 'Necesita cambios', suspended: 'Suspendido'},
     leadStatus: {created: 'Creada', contacted: 'Enviada', provider_replied: 'Respondida', success: 'Finalizada', no_response: 'Sin respuesta', cancelled: 'Cancelada'}
   },
@@ -35,6 +37,7 @@ const I18N: Record<Lang, {
     incomingRequests: 'Входящие заявки', myRequests: 'Мои заявки',
     empty: 'Пока нет заявок.', openRequest: 'Посмотреть заявку', cancelRequest: 'Отменить заявку',
     noSession: 'Откройте кабинет из бота BuenServ.', sessionExpired: 'Сессия истекла. Откройте кабинет заново из BuenServ bot.', reopen: 'Вернуться в бот', loadError: 'Не удалось загрузить кабинет.', loading: 'Загрузка…',
+    openLabel: 'Открыть',
     providerStatus: {draft: 'Черновик', pending: 'На модерации', approved: 'Одобрен', rejected: 'Нужны правки', suspended: 'Приостановлен'},
     leadStatus: {created: 'Создана', contacted: 'Отправлена', provider_replied: 'Ответили', success: 'Завершена', no_response: 'Нет ответа', cancelled: 'Отменена'}
   },
@@ -44,6 +47,7 @@ const I18N: Record<Lang, {
     incomingRequests: 'Incoming requests', myRequests: 'My requests',
     empty: 'No requests yet.', openRequest: 'Open request', cancelRequest: 'Cancel request',
     noSession: 'Open your cabinet from the BuenServ bot.', sessionExpired: 'Session expired. Open your cabinet again from the BuenServ bot.', reopen: 'Back to the bot', loadError: 'Could not load your cabinet.', loading: 'Loading…',
+    openLabel: 'Open',
     providerStatus: {draft: 'Draft', pending: 'Pending review', approved: 'Approved', rejected: 'Needs changes', suspended: 'Suspended'},
     leadStatus: {created: 'Created', contacted: 'Sent', provider_replied: 'Replied', success: 'Completed', no_response: 'No response', cancelled: 'Cancelled'}
   }
@@ -78,20 +82,22 @@ function localizedBarrio(barrios: {name_es: string; name_ru: string; name_en: st
   return barrios.name_es;
 }
 
-function LeadList({title, leads, lang, action, actionLabel, actionStatuses, i18n}: {
+function LeadList({title, leads, lang, onOpen, action, actionLabel, actionStatuses, i18n}: {
   title: string; leads: Lead[]; lang: Lang;
+  onOpen: (lead: Lead) => void;
   action?: (lead: Lead) => void; actionLabel?: string; actionStatuses?: string[];
-  i18n: {leadStatus: Record<string, string>; empty: string};
+  i18n: {leadStatus: Record<string, string>; empty: string; openLabel: string};
 }) {
   const catLabels = CAT_LABELS[lang];
   return <section style={{display: 'grid', gap: 8}}><h2 style={{fontSize: 17, margin: '8px 0 0'}}>{title}</h2>
     {leads.length === 0 ? <p style={{margin: 0, color: 'var(--tg-theme-hint-color, #777)'}}>{i18n.empty}</p> : leads.map((lead) => {
       const catName = catLabels[lead.categories?.slug ?? ''] ?? lead.categories?.slug ?? 'Servicio';
       const barrioName = localizedBarrio(lead.barrios, lang);
-      return <article key={lead.id} style={{padding: 14, borderRadius: 12, background: 'var(--tg-theme-secondary-bg-color, #f2f2f2)'}}>
+      return <article key={lead.id} onClick={() => onOpen(lead)} style={{padding: 14, borderRadius: 12, background: 'var(--tg-theme-secondary-bg-color, #f2f2f2)', cursor: 'pointer'}}>
         <strong style={{display: 'block'}}>{catName} · {barrioName}</strong>
         <span style={{fontSize: 14, color: 'var(--tg-theme-hint-color, #777)'}}>{i18n.leadStatus[lead.status] ?? lead.status}</span>
-        {action && actionStatuses?.includes(lead.status) && <button onClick={() => action(lead)} style={{display: 'block', marginTop: 10, border: 0, background: 'var(--tg-theme-button-color, #2481cc)', color: 'var(--tg-theme-button-text-color, #fff)', padding: '8px 12px', borderRadius: 8}}>{actionLabel}</button>}
+        <button onClick={(e) => { e.stopPropagation(); onOpen(lead); }} style={{display: 'block', marginTop: 10, border: 0, background: 'var(--tg-theme-button-color, #2481cc)', color: 'var(--tg-theme-button-text-color, #fff)', padding: '8px 12px', borderRadius: 8}}>{i18n.openLabel ?? 'Abrir'}</button>
+        {action && actionStatuses?.includes(lead.status) && <button onClick={(e) => { e.stopPropagation(); action(lead); }} style={{display: 'block', marginTop: 8, border: '1px solid var(--tg-theme-secondary-bg-color, #ddd)', background: 'transparent', color: 'var(--tg-theme-text-color, #111)', padding: '8px 12px', borderRadius: 8}}>{actionLabel}</button>}
       </article>;
     })}</section>;
 }
@@ -173,7 +179,7 @@ export default function MiniAppDashboardPage() {
     {dashboard.provider ? <section style={{padding: 14, borderRadius: 12, border: '1px solid var(--tg-theme-secondary-bg-color, #ddd)'}}>
       <strong>{t.providerProfile}</strong><p style={{margin: '6px 0 0'}}>{t.providerStatus[dashboard.provider.status] ?? dashboard.provider.status}</p>
     </section> : <section style={{padding: 14, borderRadius: 12, border: '1px solid var(--tg-theme-secondary-bg-color, #ddd)'}}><strong>{t.becomeProvider}</strong><p style={{margin: '6px 0 0'}}>{t.becomeProviderDesc}</p></section>}
-    {dashboard.provider && <LeadList title={t.incomingRequests} leads={dashboard.providerLeads} lang={lang} action={viewLeadDetail} actionLabel={t.openRequest} actionStatuses={['contacted']} i18n={{leadStatus: t.leadStatus, empty: t.empty}} />}
-    <LeadList title={t.myRequests} leads={dashboard.customerLeads} lang={lang} action={(lead) => submitAction(lead, 'cancelled')} actionLabel={t.cancelRequest} actionStatuses={['created', 'contacted', 'provider_replied']} i18n={{leadStatus: t.leadStatus, empty: t.empty}} />
+    {dashboard.provider && <LeadList title={t.incomingRequests} leads={dashboard.providerLeads} lang={lang} onOpen={viewLeadDetail} i18n={{leadStatus: t.leadStatus, empty: t.empty, openLabel: t.openLabel}} />}
+    <LeadList title={t.myRequests} leads={dashboard.customerLeads} lang={lang} onOpen={viewLeadDetail} action={(lead) => submitAction(lead, 'cancelled')} actionLabel={t.cancelRequest} actionStatuses={['created', 'contacted', 'provider_replied']} i18n={{leadStatus: t.leadStatus, empty: t.empty, openLabel: t.openLabel}} />
   </main>;
 }
