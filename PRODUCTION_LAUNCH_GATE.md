@@ -190,21 +190,31 @@ a72db75 feat(ops): server-side rate limiting for public write endpoints
 827e606 feat(leads): completion semantics
 ```
 
-## Корректирующие миграции (применить в порядке 032→041)
+## Корректирующие миграции — dependency order (НЕ numeric order!)
+
+⚠️ **Не применять 032→041 по номеру.** Порядок определяется зависимостями:
 
 ```text
-035 create_contact_lead — persists customer description as initial lead message
-036 completion notification types (customer_provider_completed / provider_customer_confirmed)
-037 admin alert delivery channel (bot_kind=admin_bot) + enqueue_admin_alert + claim bot_kind
-038 atomic consume_rate_limit RPC
-039 support reply immutable/audited/outbox-safe (customer_support_reply)
-040 generalize notification_outbox — lead_id/lead_event_id nullable + CHECK policy
-   (lead-linked types require lead; operational/admin/support types require NULL lead)
-041 fix consume_rate_limit off-by-one — return stored count, not count+1
+032_lead_completion_semantics.sql
+033_admin_support_reply.sql
+034_rate_limit_counters.sql
+035_contact_lead_initial_message.sql
+036_completion_notification_types.sql
+040_generalize_notification_outbox.sql   ← ДО 037/039
+037_admin_alert_delivery_channel.sql
+038_atomic_rate_limit_rpc.sql
+039_support_reply_outbox_and_immutability.sql
+041_fix_atomic_rate_limit_return.sql
 ```
 
-**040 обязателен до 037/039**: без него admin alerts и support reply не вставятся
-(lead_id/lead_event_id были NOT NULL из 025).
+**Почему 040 раньше 037/039:** 037 и 039 вставляют outbox-строки с
+`lead_id = null` / `lead_event_id = null`. Без 040 (drop NOT NULL) эти вставки
+упадут с `null value in column lead_id violates not-null constraint`.
+
+**Почему 041 после 038:** 041 заменяет `consume_rate_limit` из 038 (fix off-by-one).
+
+**Почему 039 после 037:** 039 добавляет `customer_support_reply` в check constraint,
+который 037 уже переопределяет; 039 должен идти последним из outbox-типов.
 
 ### Требуемый staging migration smoke (нельзя доказать build'ом)
 

@@ -52,6 +52,35 @@ Checklist:
 Troubleshooting:
 - If health route not 200, review Vercel runtime logs and recent env changes.
 
+1b) Migration apply order (dependency order, NOT numeric)
+---------------------------------------------------------
+⚠️ Do NOT apply migrations 032–041 in numeric order. The order is dependency-driven:
+
+```text
+032_lead_completion_semantics.sql
+033_admin_support_reply.sql
+034_rate_limit_counters.sql
+035_contact_lead_initial_message.sql
+036_completion_notification_types.sql
+040_generalize_notification_outbox.sql   ← BEFORE 037/039
+037_admin_alert_delivery_channel.sql
+038_atomic_rate_limit_rpc.sql
+039_support_reply_outbox_and_immutability.sql
+041_fix_atomic_rate_limit_return.sql
+```
+
+Why:
+- 040 drops NOT NULL on `notification_outbox.lead_id` / `lead_event_id`. 037 and 039
+  insert operational/admin/support rows with NULL lead columns; without 040 they fail
+  with `null value in column lead_id violates not-null constraint`.
+- 041 replaces `consume_rate_limit` from 038 (off-by-one fix).
+- 039 adds `customer_support_reply` to the outbox check constraint that 037 already
+  redefines; 039 must run after 037.
+
+After applying, run the SQL smoke checks listed in `PRODUCTION_LAUNCH_GATE.md`
+(enum values, create_contact_lead, completion mapping, admin channel, atomic rate
+limit, support immutability).
+
 2) GitHub Actions outbox verification
 ------------------------------------
 Commands:
