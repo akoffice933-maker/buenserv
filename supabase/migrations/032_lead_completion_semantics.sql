@@ -45,8 +45,8 @@ begin
     (p_event_type = 'customer_replied' and v_last_event = 'provider_replied') or
     (p_event_type = 'provider_service_completed' and v_last_event in ('provider_replied', 'customer_replied')) or
     (p_event_type = 'customer_completion_confirmed' and v_last_event = 'provider_service_completed') or
-    (p_event_type = 'cancelled' and v_last_event not in ('success', 'cancelled', 'expired')) or
-    (p_event_type = 'expired' and v_last_event not in ('success', 'cancelled', 'expired'))
+    (p_event_type = 'cancelled' and v_last_event not in ('completed', 'customer_completion_confirmed', 'cancelled', 'expired')) or
+    (p_event_type = 'expired' and v_last_event not in ('completed', 'customer_completion_confirmed', 'cancelled', 'expired'))
   ) then raise exception 'invalid_lead_transition: % -> %', v_last_event, p_event_type; end if;
 
   v_next_status := case
