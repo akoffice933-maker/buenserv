@@ -69,6 +69,10 @@ Troubleshooting:
 041_fix_atomic_rate_limit_return.sql
 ```
 
+**Ready-to-run file:** `scripts/apply-migrations-032-041.sql` concatenates all ten
+migrations in this exact dependency order. Paste it into the Supabase SQL Editor
+(or run via psql) to apply the whole bundle safely.
+
 Why:
 - 040 drops NOT NULL on `notification_outbox.lead_id` / `lead_event_id`. 037 and 039
   insert operational/admin/support rows with NULL lead columns; without 040 they fail
@@ -76,6 +80,11 @@ Why:
 - 041 replaces `consume_rate_limit` from 038 (off-by-one fix).
 - 039 adds `customer_support_reply` to the outbox check constraint that 037 already
   redefines; 039 must run after 037.
+
+Before running:
+1. Verify 037/039 were not partially applied (if so, reconcile first).
+2. Take a backup.
+3. Run the bundle, then verify schema/RPC state.
 
 After applying, run the SQL smoke checks listed in `PRODUCTION_LAUNCH_GATE.md`
 (enum values, create_contact_lead, completion mapping, admin channel, atomic rate
