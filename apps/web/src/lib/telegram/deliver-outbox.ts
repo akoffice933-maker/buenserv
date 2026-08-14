@@ -5,7 +5,7 @@ import {getServerEnv} from '@/lib/env';
 type OutboxItem = {
   id: string;
   notification_type: string;
-  payload: {lead_id?: string};
+  payload: {lead_id?: string; body?: string; support_request_id?: string};
   telegram_user_id: number | null;
   attempt_count: number;
   bot_kind?: 'public_bot' | 'admin_bot';
@@ -68,9 +68,14 @@ export async function deliverOutboxBatch(batchSize = 20): Promise<DeliveryResult
       const isAdmin = item.bot_kind === 'admin_bot';
       const botToken = isAdmin ? env.TELEGRAM_ADMIN_BOT_TOKEN : env.TELEGRAM_BOT_TOKEN;
       if (!botToken) throw new Error('bot_token_not_configured');
+      // Support replies carry the actual reply body in payload.body; send it as the
+      // message text so the customer sees the answer, not just a generic notice.
+      const supportReplyBody = item.notification_type === 'customer_support_reply' ? item.payload?.body : undefined;
       const payload = isAdmin
         ? {chat_id: item.telegram_user_id, ...buildAdminNotificationPayload(item.notification_type)}
-        : {chat_id: item.telegram_user_id, ...buildNotificationPayload(item.notification_type)};
+        : supportReplyBody
+          ? {chat_id: item.telegram_user_id, text: `💬 Respuesta del soporte de BuenServ:\n\n${supportReplyBody}`}
+          : {chat_id: item.telegram_user_id, ...buildNotificationPayload(item.notification_type)};
       const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: {'content-type': 'application/json'},
