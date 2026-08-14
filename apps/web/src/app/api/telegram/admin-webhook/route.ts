@@ -583,15 +583,8 @@ export async function POST(request: NextRequest) {
             if (replyError) {
               await sendAdminMessage(adminToken, chatId, '❌ Не удалось отправить ответ.');
             } else {
-              // Deliver the reply to the customer through the public bot.
-              const customerTelegramId = Array.isArray(replyResult) ? replyResult[0]?.customer_telegram_user_id : replyResult?.customer_telegram_user_id;
-              if (customerTelegramId) {
-                const replyText = `💬 Ответ поддержки BuenServ:\n\n${text}`;
-                await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-                  method: 'POST', headers: {'content-type': 'application/json'},
-                  body: JSON.stringify({chat_id: customerTelegramId, text: replyText})
-                });
-              }
+              // The RPC persists the message, writes an audit event, and enqueues a
+              // durable outbox task; the worker delivers it through the public bot.
               await setAdminPanelState(supabase, admin.profileId, 'support');
               await sendAdminMessage(adminToken, chatId, '✅ Ответ отправлен клиенту.');
             }

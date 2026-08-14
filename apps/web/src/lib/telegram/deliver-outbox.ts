@@ -21,7 +21,8 @@ const NOTIFICATION_COPY: Record<string, string> = {
   customer_provider_reply: '💬 Un prestador respondió a tu solicitud en BuenServ. Tocá el botón para continuar.',
   provider_customer_reply: '💬 El cliente respondió en BuenServ. Tocá el botón para continuar.',
   customer_provider_completed: '✅ El prestador marcó el servicio como realizado. Tocá el botón para confirmar.',
-  provider_customer_confirmed: '✅ El cliente confirmó que el servicio fue realizado. Tocá el botón para ver el detalle.'
+  provider_customer_confirmed: '✅ El cliente confirmó que el servicio fue realizado. Tocá el botón para ver el detalle.',
+  customer_support_reply: '💬 Respuesta del soporte de BuenServ:'
 };
 
 const ADMIN_NOTIFICATION_COPY: Record<string, string> = {
