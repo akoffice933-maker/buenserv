@@ -178,6 +178,8 @@ npm audit
 ## Текущий source baseline
 
 ```text
+5215b7d fix(P0/P1): generalize outbox, deliver support reply body, fix rate limit off-by-one
+b7b023b docs: record P0/P1 corrective migrations and required staging smoke
 74d3d2f fix(P1): atomic rate limit RPC, support reply immutable/audited/outbox-safe
 b62fd7d fix(P0): contact description as initial message, completion notification types, admin push channel, escape alerts
 362f1ed docs: add versioned production launch gate checklist
@@ -188,7 +190,7 @@ a72db75 feat(ops): server-side rate limiting for public write endpoints
 827e606 feat(leads): completion semantics
 ```
 
-## Корректирующие миграции (применить в порядке 032→039)
+## Корректирующие миграции (применить в порядке 032→041)
 
 ```text
 035 create_contact_lead — persists customer description as initial lead message
@@ -196,7 +198,13 @@ a72db75 feat(ops): server-side rate limiting for public write endpoints
 037 admin alert delivery channel (bot_kind=admin_bot) + enqueue_admin_alert + claim bot_kind
 038 atomic consume_rate_limit RPC
 039 support reply immutable/audited/outbox-safe (customer_support_reply)
+040 generalize notification_outbox — lead_id/lead_event_id nullable + CHECK policy
+   (lead-linked types require lead; operational/admin/support types require NULL lead)
+041 fix consume_rate_limit off-by-one — return stored count, not count+1
 ```
+
+**040 обязателен до 037/039**: без него admin alerts и support reply не вставятся
+(lead_id/lead_event_id были NOT NULL из 025).
 
 ### Требуемый staging migration smoke (нельзя доказать build'ом)
 
