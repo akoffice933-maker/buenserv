@@ -25,7 +25,7 @@ export default function SearchPage() {
   const category = params.get('category') ?? '';
   const barrio = params.get('barrio') ?? '';
 
-  const load = () => {
+  useEffect(() => {
     const initData = getTelegramInitData();
     if (!initData) { setError('No session'); return; }
     const q = new URLSearchParams();
@@ -41,9 +41,7 @@ export default function SearchPage() {
         setData(body);
       })
       .catch((e) => setError(e.message));
-  };
-
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [category, barrio]);
+  }, [category, barrio]);
 
   const t = (es: string, ru: string, en: string) => lang === 'ru' ? ru : lang === 'en' ? en : es;
   const catName = (c: {name_es: string; name_ru: string; name_en: string}) => t(c.name_es, c.name_ru, c.name_en);
