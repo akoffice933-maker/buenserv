@@ -2,6 +2,7 @@
 
 import {useCallback, useEffect, useState} from 'react';
 import {useParams, useRouter} from 'next/navigation';
+import {useMiniApp} from '@/context/MiniAppContext';
 
 type Lang = 'es' | 'ru' | 'en';
 
@@ -178,6 +179,7 @@ export default function LeadDetailPage() {
   const router = useRouter();
   const params = useParams<{'lead-id': string}>();
   const leadId = params['lead-id'];
+  const {t: tr, locale} = useMiniApp();
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [error, setError] = useState('');
   const [lang, setLang] = useState<Lang>('es');
@@ -326,7 +328,25 @@ export default function LeadDetailPage() {
     );
   }
 
-  const t = I18N[lang];
+  const t = {
+    noSession: tr('ld_no_session'), sessionExpired: tr('ld_session_expired'), loadError: tr('ld_load_error'),
+    loading: tr('loading'), messagesTitle: tr('ld_messages'), messagePlaceholder: tr('ld_placeholder'),
+    sendMessage: tr('ld_send'), sendingMessage: tr('ld_sending'), noMessages: tr('ld_no_messages'), you: tr('ld_you'),
+    actionProviderOpened: tr('ld_action_opened'), actionProviderReplied: tr('ld_action_replied'),
+    actionCustomerReplied: tr('ld_action_customer_replied'), actionProviderServiceCompleted: tr('ld_action_completed'),
+    actionCustomerCompletionConfirmed: tr('ld_action_confirmed'), actionCancelled: tr('ld_action_cancelled'),
+    greeting: tr('greeting_default'), becomeProvider: tr('top_offer_btn'), providerProfile: tr('provider_status_card_title'),
+    incomingRequests: tr('ld_incoming'), myRequests: tr('ld_my'), empty: tr('ld_empty'),
+    openRequest: tr('ld_action_opened'), cancelRequest: tr('action_cancel_lead'),
+    providerStatus: {
+      draft: tr('status_draft'), pending: tr('status_pending_moderation'), approved: tr('status_approved'),
+      rejected: tr('status_needs_changes'), suspended: tr('status_suspended')
+    } as Record<string, string>,
+    leadStatus: {
+      created: tr('ld_status_created'), contacted: tr('ld_status_contacted'), provider_replied: tr('ld_status_replied'),
+      success: tr('ld_status_success'), no_response: tr('ld_status_no_response'), cancelled: tr('ld_status_cancelled')
+    } as Record<string, string>
+  };
   const catName = CAT_LABELS[lang][lead.category ?? ''] ?? lead.category ?? 'Servicio';
   const barrioName = localizedBarrio(lead.barrio, lang);
   const providerName = lead.provider ? lead.provider.profile.display_name : null;
