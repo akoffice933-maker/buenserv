@@ -176,8 +176,8 @@ function localizedBarrio(barrios: {name_es: string; name_ru: string; name_en: st
 
 export default function LeadDetailPage() {
   const router = useRouter();
-  const params = useParams<{leadId: string}>();
-  const leadId = params.leadId;
+  const params = useParams<{'lead-id': string}>();
+  const leadId = params['lead-id'];
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [error, setError] = useState('');
   const [lang, setLang] = useState<Lang>('es');
