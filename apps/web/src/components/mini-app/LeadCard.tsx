@@ -71,7 +71,7 @@ export function LeadCard({
 
       {lead.initialDescription && (
         <p className="text-[13px] text-[#66706B] line-clamp-2 mb-3 italic">
-          "{lead.initialDescription}"
+          &ldquo;{lead.initialDescription}&rdquo;
         </p>
       )}
 
