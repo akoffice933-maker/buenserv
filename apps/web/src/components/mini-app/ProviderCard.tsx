@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Star, ShieldCheck, MapPin, Tag } from "lucide-react";
 import { useMiniApp } from "@/context/MiniAppContext";
 import { triggerHaptic } from "@/lib/telegram-client";
+import { formatPrice } from "@/lib/format";
 
 export interface ProviderData {
   id: string;
@@ -25,7 +26,7 @@ interface ProviderCardProps {
 }
 
 export function ProviderCard({ provider }: ProviderCardProps) {
-  const { t } = useMiniApp();
+  const { t, locale } = useMiniApp();
 
   const isVerified = provider.status === "approved";
   const hasApprovedRating =
@@ -116,7 +117,7 @@ export function ProviderCard({ provider }: ProviderCardProps) {
           {provider.priceFromArs ? (
             <>
               <span className="text-[11px] text-[#66706B] font-medium uppercase tracking-wider">Precio estimado</span>
-              <span className="text-[15px] font-extrabold text-[#0FA37F]">{t("price_from", { price: provider.priceFromArs.toLocaleString("es-AR") })}</span>
+              <span className="text-[15px] font-extrabold text-[#0FA37F]">{t("price_from", { price: formatPrice(provider.priceFromArs, locale) })}</span>
             </>
           ) : (
             <span className="text-[13px] text-[#66706B] font-medium">Consultar precio</span>

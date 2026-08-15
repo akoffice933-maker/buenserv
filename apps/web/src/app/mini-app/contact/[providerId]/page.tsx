@@ -131,6 +131,14 @@ export default function ContactPage() {
       setLoading(false);
       return;
     }
+    // Hydrate locale from the canonical profile (profiles.locale is the source of truth).
+    fetch('/api/mini-app/profile', {headers: {'x-telegram-init-data': initData}})
+      .then((r) => r.json())
+      .then((body) => {
+        const loc = body?.profile?.locale;
+        if (loc === 'ru' || loc === 'en') setLang(loc);
+      })
+      .catch(() => { /* keep default */ });
     fetch(`/api/mini-app/contact?providerId=${encodeURIComponent(providerId)}`, {headers: {'x-telegram-init-data': initData}})
       .then(async (response) => {
         const body = await response.json();

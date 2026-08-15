@@ -7,6 +7,7 @@ import {PrimaryButton, SecondaryButton} from '@/components/mini-app/Buttons';
 import {LoadingState, ErrorState} from '@/components/mini-app/FeedbackStates';
 import {getCategoryIcon} from '@/components/mini-app/CategoryTile';
 import {apiFetch, triggerHaptic} from '@/lib/telegram-client';
+import {formatPrice} from '@/lib/format';
 import {ShieldCheck, MapPin, Briefcase} from 'lucide-react';
 
 type ProviderData = {
@@ -79,7 +80,7 @@ export default function ProviderDetailPage() {
                     <div className="w-7 h-7 rounded-full bg-[#EAF7F1] flex items-center justify-center shrink-0">{getCategoryIcon(c.slug, 'w-3.5 h-3.5 text-[#0FA37F]')}</div>
                     <h4 className="text-[15px] font-bold text-[#1A1F1D]">{locale === 'ru' ? c.name_ru : locale === 'en' ? c.name_en : c.name_es}</h4>
                   </div>
-                  {c.priceFromArs ? <span className="text-[14px] font-extrabold text-[#0FA37F] shrink-0">${c.priceFromArs.toLocaleString('es-AR')}</span> : null}
+                  {c.priceFromArs ? <span className="text-[14px] font-extrabold text-[#0FA37F] shrink-0">${formatPrice(c.priceFromArs, locale)}</span> : null}
                 </div>
               </div>
             ))}

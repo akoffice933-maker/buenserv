@@ -157,6 +157,20 @@ export default function OnboardingPage() {
       const w = window as unknown as {Telegram?: {WebApp?: {expand?: () => void}}};
       w.Telegram?.WebApp?.expand?.();
     } catch { /* ignore */ }
+    // Hydrate locale from the canonical profile (profiles.locale is the source of truth).
+    try {
+      const w = window as unknown as {Telegram?: {WebApp?: {initData?: string}}};
+      const initData = w.Telegram?.WebApp?.initData ?? '';
+      if (initData) {
+        fetch('/api/mini-app/profile', {headers: {'x-telegram-init-data': initData}})
+          .then((r) => r.json())
+          .then((body) => {
+            const loc = body?.profile?.locale;
+            if (loc === 'ru' || loc === 'en') setLang(loc);
+          })
+          .catch(() => { /* keep default */ });
+      }
+    } catch { /* ignore */ }
     setStarted(true);
   }, []);
 
