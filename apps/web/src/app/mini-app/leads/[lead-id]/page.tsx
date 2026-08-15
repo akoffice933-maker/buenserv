@@ -3,6 +3,7 @@
 import {useCallback, useEffect, useState} from 'react';
 import {useParams, useRouter} from 'next/navigation';
 import {useMiniApp} from '@/context/MiniAppContext';
+import {formatDateTime} from '@/lib/format';
 
 type Lang = 'es' | 'ru' | 'en';
 
@@ -46,8 +47,8 @@ type LeadDetail = {
 
 const CAT_LABELS: Record<Lang, Record<string, string>> = {
   es: {limpieza: 'Limpieza', reparaciones: 'Reparaciones', mascotas: 'Mascotas', mudanzas: 'Mudanzas', clases: 'Clases', mensajeria: 'Mensajería', 'taxi-traslados': 'Taxi'},
-  ru: {limpieza: 'Уборка', reparaciones: 'Ремонт', mascotas: 'Питомцы', mudanzas: 'Переезды', классы: 'Занятия', mensajeria: 'Курьеры', 'taxi-trasлоз': 'Такси'},
-  en: {limpieza: 'Cleaning', reparaciones: 'Repairs', mascotas: 'Pets', mudanzas: 'Moving', clases: 'Lessons', mensajeria: 'Delivery', 'taxi-trasлоз': 'Taxi'},
+  ru: {limpieza: 'Уборка', reparaciones: 'Ремонт', mascotas: 'Питомцы', mudanzas: 'Переезды', clases: 'Занятия', mensajeria: 'Курьеры', 'taxi-traslados': 'Такси'},
+  en: {limpieza: 'Cleaning', reparaciones: 'Repairs', mascotas: 'Pets', mudanzas: 'Moving', clases: 'Lessons', mensajeria: 'Delivery', 'taxi-traslados': 'Taxi'},
 };
 
 const I18N: Record<Lang, {
@@ -306,6 +307,20 @@ export default function LeadDetailPage() {
         setLang(langFromHash);
       }
     } catch { /* ignore */ }
+    // Hydrate locale from the canonical profile (profiles.locale is the source of truth).
+    try {
+      const w = window as unknown as {Telegram?: {WebApp?: {initData?: string}}};
+      const initData = w.Telegram?.WebApp?.initData ?? '';
+      if (initData) {
+        fetch('/api/mini-app/profile', {headers: {'x-telegram-init-data': initData}})
+          .then((r) => r.json())
+          .then((body) => {
+            const loc = body?.profile?.locale;
+            if (loc === 'ru' || loc === 'en') setLang(loc);
+          })
+          .catch(() => { /* keep default */ });
+      }
+    } catch { /* ignore */ }
   }, [leadId, fetchLeadData]);
 
   if (error) {
@@ -407,7 +422,7 @@ export default function LeadDetailPage() {
                         : event.event_type}
                   </span>
                   <span style={{color: '#666'}}>
-                    {new Date(event.created_at).toLocaleString()}
+                    {formatDateTime(event.created_at, locale)}
                   </span>
                 </div>
               </div>
@@ -429,7 +444,7 @@ export default function LeadDetailPage() {
               <article key={message.id} style={{padding: 12, borderRadius: 12, background: isMine ? '#dff1ff' : '#fff', border: '1px solid #e7e7e7'}}>
                 <div style={{display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13, color: '#666'}}>
                   <strong style={{color: '#111'}}>{isMine ? t.you : (message.senderDisplayName ?? message.senderRole)}</strong>
-                  <time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString()}</time>
+                  <time dateTime={message.createdAt}>{formatDateTime(message.createdAt, locale)}</time>
                 </div>
                 <p style={{margin: '8px 0 0', whiteSpace: 'pre-wrap'}}>{message.body}</p>
               </article>

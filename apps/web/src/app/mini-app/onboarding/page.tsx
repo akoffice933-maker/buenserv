@@ -5,6 +5,7 @@ import {useMiniApp} from '@/context/MiniAppContext';
 import {MiniAppShell} from '@/components/mini-app/MiniAppShell';
 import {PrimaryButton, SecondaryButton} from '@/components/mini-app/Buttons';
 import {CATEGORY_LABELS, CategorySlug} from '@/lib/categories';
+import {formatPrice} from '@/lib/format';
 
 type Lang = 'es' | 'ru' | 'en';
 
@@ -196,7 +197,7 @@ export default function OnboardingPage() {
 
         {step === 'confirm' && (
           <div className="space-y-3">
-            {[[t.lblCat, t.cat[CATEGORIES.indexOf(category)]], [t.lblBar, t.bar[BARRIOS.indexOf(barrio)]], [t.lblDesc, description.slice(0, 60) + '...'], [t.lblPrice, `$${Number(price).toLocaleString()} ARS`]].map(([k, v]) => (
+            {[[t.lblCat, t.cat[CATEGORIES.indexOf(category)]], [t.lblBar, t.bar[BARRIOS.indexOf(barrio)]], [t.lblDesc, description.slice(0, 60) + '...'], [t.lblPrice, `$${formatPrice(Number(price), locale)} ARS`]].map(([k, v]) => (
               <div key={k} className="p-3 bg-white rounded-[14px] border border-[#DCE4DE]">
                 <p className="m-0 text-[12px] text-[#66706B]">{k}</p>
                 <p className="m-0 mt-1 text-[16px] text-[#1A1F1D]">{v}</p>

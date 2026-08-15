@@ -37,60 +37,60 @@ describe('Mini App contact route', () => {
   });
 
   it('creates a lead only when the customer picks a category/barrio the provider offers', async () => {
-    resolveMiniAppIdentityMock.mockResolvedValue({profileId: 'customer-1', telegramUser: {id: 123}} as any);
+    resolveMiniAppIdentityMock.mockResolvedValue({profileId: '11111111-1111-1111-1111-111111111111', telegramUser: {id: 123}} as any);
     const provider = {
-      id: 'provider-1',
-      provider_categories: [{category_id: 'cat-1'}],
-      provider_barrios: [{barrio_id: 'bar-1'}]
+      id: '22222222-2222-2222-2222-222222222222',
+      provider_categories: [{category_id: '33333333-3333-3333-3333-333333333333'}],
+      provider_barrios: [{barrio_id: '44444444-4444-4444-4444-444444444444'}]
     };
     const {rpc, rpcs} = buildSupabaseMock(provider);
 
     const response = await POST(new Request('http://localhost/api/mini-app/contact', {
       method: 'POST',
       headers: {'x-telegram-init-data': 'test-init-data', 'content-type': 'application/json'},
-      body: JSON.stringify({providerId: 'provider-1', categoryId: 'cat-1', barrioId: 'bar-1', description: 'necesito limpieza', idempotencyKey: '00000000-0000-0000-0000-000000000111'})
+      body: JSON.stringify({providerId: '22222222-2222-2222-2222-222222222222', categoryId: '33333333-3333-3333-3333-333333333333', barrioId: '44444444-4444-4444-4444-444444444444', description: 'necesito limpieza', idempotencyKey: '00000000-0000-0000-0000-000000000111'})
     }) as any);
 
     expect(response.status).toBe(200);
     expect(rpc).toHaveBeenCalledWith('create_contact_lead', expect.objectContaining({
-      p_customer_profile_id: 'customer-1',
-      p_provider_id: 'provider-1',
-      p_category_id: 'cat-1',
-      p_barrio_id: 'bar-1',
+      p_customer_profile_id: '11111111-1111-1111-1111-111111111111',
+      p_provider_id: '22222222-2222-2222-2222-222222222222',
+      p_category_id: '33333333-3333-3333-3333-333333333333',
+      p_barrio_id: '44444444-4444-4444-4444-444444444444',
       p_description: 'necesito limpieza'
     }));
   });
 
   it('rejects a category/barrio the provider does not offer', async () => {
-    resolveMiniAppIdentityMock.mockResolvedValue({profileId: 'customer-1', telegramUser: {id: 123}} as any);
+    resolveMiniAppIdentityMock.mockResolvedValue({profileId: '11111111-1111-1111-1111-111111111111', telegramUser: {id: 123}} as any);
     const provider = {
-      id: 'provider-1',
-      provider_categories: [{category_id: 'cat-1'}],
-      provider_barrios: [{barrio_id: 'bar-1'}]
+      id: '22222222-2222-2222-2222-222222222222',
+      provider_categories: [{category_id: '33333333-3333-3333-3333-333333333333'}],
+      provider_barrios: [{barrio_id: '44444444-4444-4444-4444-444444444444'}]
     };
     buildSupabaseMock(provider);
 
     const response = await POST(new Request('http://localhost/api/mini-app/contact', {
       method: 'POST',
       headers: {'x-telegram-init-data': 'test-init-data', 'content-type': 'application/json'},
-      body: JSON.stringify({providerId: 'provider-1', categoryId: 'cat-2', barrioId: 'bar-1', description: '', idempotencyKey: '00000000-0000-0000-0000-000000000112'})
+      body: JSON.stringify({providerId: '22222222-2222-2222-2222-222222222222', categoryId: '55555555-5555-5555-5555-555555555555', barrioId: '44444444-4444-4444-4444-444444444444', description: '', idempotencyKey: '00000000-0000-0000-0000-000000000112'})
     }) as any);
 
     expect(response.status).toBe(400);
   });
 
   it('returns only the provider public available categories and barrios on GET', async () => {
-    resolveMiniAppIdentityMock.mockResolvedValue({profileId: 'customer-1', telegramUser: {id: 123}} as any);
+    resolveMiniAppIdentityMock.mockResolvedValue({profileId: '11111111-1111-1111-1111-111111111111', telegramUser: {id: 123}} as any);
     const provider = {
-      id: 'provider-1',
+      id: '22222222-2222-2222-2222-222222222222',
       slug: 'mariana-lopez',
       profiles: {display_name: 'Mariana'},
-      provider_categories: [{price_from_ars: 18000, categories: {id: 'cat-1', slug: 'limpieza'}}],
-      provider_barrios: [{barrios: {id: 'bar-1', slug: 'palermo', name_es: 'Palermo', name_ru: 'Палермо', name_en: 'Palermo'}}]
+      provider_categories: [{price_from_ars: 18000, categories: {id: '33333333-3333-3333-3333-333333333333', slug: 'limpieza'}}],
+      provider_barrios: [{barrios: {id: '44444444-4444-4444-4444-444444444444', slug: 'palermo', name_es: 'Palermo', name_ru: 'Палермо', name_en: 'Palermo'}}]
     };
     const {providerQuery} = buildSupabaseMock(provider);
 
-    const response = await GET(new Request('http://localhost/api/mini-app/contact?providerId=provider-1', {
+    const response = await GET(new Request('http://localhost/api/mini-app/contact?providerId=22222222-2222-2222-2222-222222222222', {
       headers: {'x-telegram-init-data': 'test-init-data'}
     }) as any);
     expect(response.status).toBe(200);

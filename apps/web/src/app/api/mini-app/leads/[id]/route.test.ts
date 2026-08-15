@@ -187,7 +187,8 @@ describe('Mini App lead detail route', () => {
     expect(response.status).toBe(200);
     const payload = await response.json();
     expect(payload.lead.isCustomer).toBe(true);
-    expect(payload.lead.allowedActions).toEqual(['customer_replied', 'cancelled']);
+    // Replies happen only through the composer, not lifecycle buttons.
+    expect(payload.lead.allowedActions).toEqual(['cancelled']);
   });
 
   it('does not present destructive actions after completed', async () => {
