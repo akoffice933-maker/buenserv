@@ -583,8 +583,30 @@ export async function POST(request: NextRequest) {
             if (replyError) {
               await sendAdminMessage(adminToken, chatId, '❌ Не удалось отправить ответ.');
             } else {
-              // The RPC persists the message, writes an audit event, and enqueues a
-              // durable outbox task; the worker delivers it through the public bot.
+              // Deliver immediately through the public bot (the outbox task remains as
+              // a durable retry fallback if this synchronous send fails).
+              const {data: customer} = await supabase
+                .from('support_requests')
+                .select('profiles!support_requests_profile_id_fkey(telegram_user_id)')
+                .eq('id', requestId)
+                .single();
+              const customerTgId = (customer?.profiles as unknown as {telegram_user_id?: number | null} | null)?.telegram_user_id;
+              if (customerTgId) {
+                const replyText = `💬 Respuesta del soporte de BuenServ:\n\n${text}`;
+                const sendRes = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                  method: 'POST', headers: {'content-type': 'application/json'},
+                  body: JSON.stringify({chat_id: customerTgId, text: replyText})
+                });
+                const sendBody = await sendRes.json().catch(() => null);
+                if (sendRes.ok && sendBody?.ok) {
+                  // Mark the matching outbox task as sent so the scheduler won't resend.
+                  await supabase
+                    .from('notification_outbox')
+                    .update({status: 'sent', sent_at: new Date().toISOString(), telegram_message_id: sendBody.result?.message_id ?? null, locked_at: null, last_error: null, updated_at: new Date().toISOString()})
+                    .eq('notification_type', 'customer_support_reply')
+                    .eq('status', 'pending');
+                }
+              }
               await setAdminPanelState(supabase, admin.profileId, 'support');
               await sendAdminMessage(adminToken, chatId, '✅ Ответ отправлен клиенту.');
             }
