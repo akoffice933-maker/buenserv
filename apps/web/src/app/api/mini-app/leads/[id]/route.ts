@@ -73,25 +73,25 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const lastEvent = events.length > 0 ? events[events.length - 1] : null;
     const lastEventType = lastEvent?.event_type as string | null;
 
-    // Define allowed actions based on last event and ownership
+    // Define allowed actions based on last event and ownership.
+    // Replies (provider_replied / customer_replied) are NOT lifecycle buttons:
+    // they happen only through the message composer, which persists a real
+    // lead_message and emits the reply event. Lifecycle buttons are reserved for
+    // open / complete / confirm / cancel.
     let allowedActions: string[] = [];
     if (isProvider) {
       switch (lastEventType) {
         case 'provider_notified':
+          // Provider may open the lead explicitly, or reply directly via composer.
           allowedActions = ['provider_opened'];
           break;
         case 'provider_opened':
-          allowedActions = ['provider_replied'];
-          break;
         case 'provider_replied':
         case 'customer_replied':
           // Provider may mark the service as done after any reply.
           allowedActions = ['provider_service_completed'];
           break;
         case 'provider_service_completed':
-          // Waiting for customer to confirm completion.
-          allowedActions = [];
-          break;
         case 'customer_completion_confirmed':
           allowedActions = [];
           break;
@@ -106,8 +106,6 @@ export async function GET(request: NextRequest, context: RouteContext) {
           allowedActions = [];
           break;
         case 'provider_replied':
-          allowedActions = ['customer_replied', 'cancelled'];
-          break;
         case 'customer_replied':
           allowedActions = ['cancelled'];
           break;
