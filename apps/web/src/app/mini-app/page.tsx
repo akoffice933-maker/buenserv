@@ -93,7 +93,7 @@ function LeadList({title, leads, lang, onOpen, action, actionLabel, actionStatus
     {leads.length === 0 ? <p style={{margin: 0, color: 'var(--tg-theme-hint-color, #777)'}}>{i18n.empty}</p> : leads.map((lead) => {
       const catName = catLabels[lead.categories?.slug ?? ''] ?? lead.categories?.slug ?? 'Servicio';
       const barrioName = localizedBarrio(lead.barrios, lang);
-      return <article key={lead.id} onClick={() => onOpen(lead)} style={{padding: 14, borderRadius: 12, background: 'var(--tg-theme-secondary-bg-color, #f2f2f2)', cursor: 'pointer'}}>
+      return <article key={lead.id} role="button" tabIndex={0} onClick={() => onOpen(lead)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(lead); } }} style={{padding: 14, borderRadius: 12, background: 'var(--tg-theme-secondary-bg-color, #f2f2f2)', cursor: 'pointer'}}>
         <strong style={{display: 'block'}}>{catName} · {barrioName}</strong>
         <span style={{fontSize: 14, color: 'var(--tg-theme-hint-color, #777)'}}>{i18n.leadStatus[lead.status] ?? lead.status}</span>
         <button onClick={(e) => { e.stopPropagation(); onOpen(lead); }} style={{display: 'block', marginTop: 10, border: 0, background: 'var(--tg-theme-button-color, #2481cc)', color: 'var(--tg-theme-button-text-color, #fff)', padding: '8px 12px', borderRadius: 8}}>{i18n.openLabel ?? 'Abrir'}</button>

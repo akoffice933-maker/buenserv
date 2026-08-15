@@ -162,6 +162,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({error: 'Support submission failed'}, {status: 500});
     }
     await supabase.from('telegram_support_sessions').delete().eq('profile_id', profile.id);
+    // Open an explicit support-reply session so the user can continue the thread.
+    await supabase.rpc('start_support_reply_session', {p_profile_id: profile.id});
     await sendTelegramMessage(env, chatId, onboardingText(locale, 'supportSubmitted'));
     // Push an admin alert through the outbox so the admin bot is notified.
     await supabase.rpc('enqueue_admin_alert', {p_notification_type: 'admin_new_support_request', p_payload: {details: details.slice(0, 200)}});
@@ -193,18 +195,17 @@ export async function POST(request: NextRequest) {
     await markProcessed(); return NextResponse.json({ok: true});
   }
 
-  // Customer continuing an open support thread: any non-command text is appended to
-  // the support request and notifies support staff.
+  // Customer continuing an explicit support-reply session: only when the user opted
+  // into reply mode (via /support or the "Continue" button) is non-command text
+  // appended to the support request. Normal bot flows are never hijacked.
   if (!msgText.startsWith('/')) {
-    const {data: openSupport} = await supabase
-      .from('support_requests')
-      .select('id')
+    const {data: replySession} = await supabase
+      .from('telegram_support_reply_sessions')
+      .select('support_request_id')
       .eq('profile_id', profile.id)
-      .in('status', ['open', 'reviewing'])
-      .order('created_at', {ascending: false})
-      .limit(1)
+      .gt('expires_at', new Date().toISOString())
       .maybeSingle();
-    if (openSupport) {
+    if (replySession) {
       const {error: replyError} = await supabase.rpc('customer_reply_support_request', {
         p_profile_id: profile.id,
         p_body: msgText,
