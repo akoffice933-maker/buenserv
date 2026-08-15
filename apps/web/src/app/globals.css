@@ -8,9 +8,39 @@
   --color-bs-muted: #66706B;
   --color-bs-canvas: #FAF9F6;
   --color-bs-mint: #E4F5EE;
+  --color-bs-line: #DCE4DE;
+  --color-bs-soft-green: #EAF7F1;
+  --color-bs-warning: #C88716;
+  --color-bs-danger: #B84040;
   --font-sans: var(--font-body);
   --font-display: var(--font-display);
 }
+
+:root {
+  --bs-primary: #0FA37F;
+  --bs-primary-hover: #08735A;
+  --bs-canvas: #FAF9F6;
+  --bs-ink: #1A1F1D;
+  --bs-muted: #66706B;
+  --bs-card: #FFFFFF;
+  --bs-line: #DCE4DE;
+  --bs-soft-green: #EAF7F1;
+  --bs-warning: #C88716;
+  --bs-danger: #B84040;
+  --bs-radius-card: 16px;
+  --bs-radius-control: 14px;
+  --bs-radius-pill: 999px;
+  --bs-page-padding: 16px;
+  --bs-nav-height: 76px;
+  --bs-card-shadow: 0 13px 32px rgba(23, 53, 42, 0.07);
+  --bs-card-hover-shadow: 0 18px 40px rgba(23, 53, 42, 0.12);
+}
+
+.safe-bottom { padding-bottom: max(16px, env(safe-area-inset-bottom, 16px)); }
+.safe-top { padding-top: max(12px, env(safe-area-inset-top, 12px)); }
+.sheet-backdrop { background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(4px); }
+.bs-card-shadow { box-shadow: var(--bs-card-shadow); }
+.bs-card-hover-shadow:hover { box-shadow: var(--bs-card-hover-shadow); }
 
 :root { color-scheme: light; }
 * { box-sizing: border-box; }
