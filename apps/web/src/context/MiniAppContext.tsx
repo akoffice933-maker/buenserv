@@ -7,6 +7,7 @@ import { apiFetch, triggerHaptic } from "@/lib/telegram-client";
 interface MiniAppContextType {
   locale: Locale;
   setLocale: (newLocale: Locale) => Promise<boolean>;
+  hydrateLocale: (newLocale: Locale) => void;
   t: (key: keyof typeof translations["es-AR"], params?: Record<string, string | number>) => string;
   isLocaleSheetOpen: boolean;
   setIsLocaleSheetOpen: (open: boolean) => void;
@@ -50,6 +51,12 @@ export function MiniAppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const hydrateLocale = useCallback((newLocale: Locale) => {
+    if (["es-AR", "ru", "en"].includes(newLocale)) {
+      setLocaleState(newLocale);
+    }
+  }, []);
+
   const t = useCallback(
     (key: keyof typeof translations["es-AR"], params?: Record<string, string | number>) => {
       return getTranslation(locale, key, params);
@@ -59,7 +66,7 @@ export function MiniAppProvider({ children }: { children: ReactNode }) {
 
   return (
     <MiniAppContext.Provider
-      value={{ locale, setLocale, t, isLocaleSheetOpen, setIsLocaleSheetOpen }}
+      value={{ locale, setLocale, hydrateLocale, t, isLocaleSheetOpen, setIsLocaleSheetOpen }}
     >
       {children}
     </MiniAppContext.Provider>

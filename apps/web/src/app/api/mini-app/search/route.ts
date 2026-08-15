@@ -2,6 +2,7 @@ import {NextRequest, NextResponse} from 'next/server';
 import {createAdminClient} from '@/lib/supabase/admin';
 import {getMiniAppInitData, resolveMiniAppIdentity} from '@/lib/telegram/mini-app-auth';
 import {CATEGORY_LABELS, isCategorySlug} from '@/lib/categories';
+import {one} from '@/lib/relations';
 
 export async function GET(request: NextRequest) {
   try {
@@ -72,6 +73,12 @@ export async function GET(request: NextRequest) {
     const {data: providers, error: provError} = await query.order('created_at', {ascending: false}).limit(50);
     if (provError) throw provError;
 
+    // Exclude approved providers without a canonical Telegram identity (unreachable).
+    const providersWithIdentity = (providers ?? []).filter((p) => {
+      const profile = one(p.profiles as {telegram_user_id?: number | null} | {telegram_user_id?: number | null}[] | null);
+      return Boolean(profile?.telegram_user_id);
+    });
+
     // Enrich categories with canonical labels/icons.
     const enrichedCategories = (categories ?? []).map((c) => {
       const meta = isCategorySlug(c.slug) ? CATEGORY_LABELS[c.slug] : null;
@@ -81,7 +88,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       categories: enrichedCategories,
       barrios: barrios ?? [],
-      providers: providers ?? []
+      providers: providersWithIdentity
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to load search';

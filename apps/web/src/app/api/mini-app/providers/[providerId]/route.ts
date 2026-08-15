@@ -28,7 +28,9 @@ export async function GET(request: NextRequest, context: {params: Promise<{provi
     if (error) throw error;
     if (!provider) return NextResponse.json({error: 'Provider not found'}, {status: 404});
 
-    const profile = one(provider.profiles as {display_name?: string | null} | {display_name?: string | null}[] | null);
+    const profile = one(provider.profiles as {display_name?: string | null; telegram_user_id?: number | null} | {display_name?: string | null; telegram_user_id?: number | null}[] | null);
+    // Exclude approved providers without a canonical Telegram identity (unreachable).
+    if (!profile?.telegram_user_id) return NextResponse.json({error: 'Provider not found'}, {status: 404});
     // Enrich category slugs with canonical labels/icons.
     const categories = (provider.provider_categories ?? []).map((pc: {category_id: string; price_from_ars?: number | null; categories: {slug: string} | {slug: string}[] | null}) => {
       const cat = one(pc.categories as {slug: string} | {slug: string}[] | null);

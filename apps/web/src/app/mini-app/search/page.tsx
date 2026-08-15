@@ -100,6 +100,7 @@ function SearchContent() {
     return {
       id: p.id,
       displayName: profile?.display_name ?? 'Profesional',
+      avatarUrl: p.photo_path ?? null,
       status: p.status,
       isVerified: p.status === 'approved',
       priceFromArs: cats[0]?.priceFromArs ?? null,

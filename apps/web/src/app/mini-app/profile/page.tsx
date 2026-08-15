@@ -16,7 +16,7 @@ type ProfileResponse = {
 };
 
 export default function ProfilePage() {
-  const {t, locale, setIsLocaleSheetOpen} = useMiniApp();
+  const {t, locale, setIsLocaleSheetOpen, hydrateLocale} = useMiniApp();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<ProfileResponse | null>(null);
@@ -26,9 +26,9 @@ export default function ProfilePage() {
     setError(null);
     const res = await apiFetch<ProfileResponse>('/api/mini-app/profile');
     if (res.error || !res.data) setError(res.error || 'No pudimos cargar el perfil');
-    else setData(res.data);
+    else { setData(res.data); hydrateLocale(res.data.profile.locale as 'es-AR' | 'ru' | 'en'); }
     setLoading(false);
-  }, []);
+  }, [hydrateLocale]);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 

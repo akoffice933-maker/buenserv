@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useMiniApp } from "@/context/MiniAppContext";
 import { LOCALES, Locale } from "@/lib/i18n";
 import { Globe, Check, X } from "lucide-react";
@@ -30,8 +30,15 @@ export function LocaleChip() {
 
 export function LocaleSheet() {
   const { isLocaleSheetOpen, setIsLocaleSheetOpen, locale, setLocale } = useMiniApp();
+  const [error, setError] = useState<string | null>(null);
 
   if (!isLocaleSheetOpen) return null;
+
+  const handleSelect = async (code: Locale) => {
+    setError(null);
+    const ok = await setLocale(code);
+    if (!ok) setError("No pudimos cambiar el idioma. Probá de nuevo.");
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end">
@@ -69,7 +76,7 @@ export function LocaleSheet() {
               <button
                 key={item.code}
                 type="button"
-                onClick={() => setLocale(item.code)}
+                onClick={() => handleSelect(item.code)}
                 className={`w-full min-h-[52px] flex items-center justify-between px-4 py-3 rounded-[14px] text-left text-base font-medium transition-all ${
                   isSelected
                     ? "bg-[#EAF7F1] text-[#0FA37F] font-bold border border-[#0FA37F]/30"
@@ -85,6 +92,11 @@ export function LocaleSheet() {
             );
           })}
         </div>
+        {error && (
+          <p className="mt-3 text-[13px] text-[#B84040] bg-red-50 border border-red-200 rounded-[10px] p-2.5 text-center">
+            {error}
+          </p>
+        )}
       </div>
     </div>
   );

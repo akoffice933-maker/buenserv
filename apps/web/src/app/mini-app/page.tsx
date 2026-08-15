@@ -26,7 +26,7 @@ type DashboardData = {
 };
 
 export default function MiniAppHomePage() {
-  const {t, locale} = useMiniApp();
+  const {t, locale, hydrateLocale} = useMiniApp();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<DashboardData | null>(null);
@@ -39,9 +39,10 @@ export default function MiniAppHomePage() {
       setError(res.error || t('network_error_title'));
     } else {
       setData(res.data);
+      hydrateLocale(res.data.profile.locale as 'es-AR' | 'ru' | 'en');
     }
     setLoading(false);
-  }, [t]);
+  }, [t, hydrateLocale]);
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
