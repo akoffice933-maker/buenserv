@@ -1,185 +1,126 @@
 'use client';
+import {useEffect, useState, useCallback} from 'react';
+import Link from 'next/link';
+import {MiniAppShell} from '@/components/mini-app/MiniAppShell';
+import {useMiniApp} from '@/context/MiniAppContext';
+import {CategoryTile} from '@/components/mini-app/CategoryTile';
+import {LeadCard, LeadCardData} from '@/components/mini-app/LeadCard';
+import {StatusBadge} from '@/components/mini-app/StatusBadge';
+import {LoadingState, ErrorState} from '@/components/mini-app/FeedbackStates';
+import {apiFetch, triggerHaptic} from '@/lib/telegram-client';
+import {Search, Briefcase, ShieldCheck, ChevronRight} from 'lucide-react';
+import {CANONICAL_CATEGORIES} from '@/lib/constants';
 
-import {useEffect, useState} from 'react';
-import {useRouter} from 'next/navigation';
-
-type Lang = 'es' | 'ru' | 'en';
-
-type Lead = {id: string; status: string; created_at: string; updated_at: string; categories: {slug: string} | null; barrios: {name_es: string; name_ru: string; name_en: string} | null; providers?: {slug: string} | null};
-type Dashboard = {profile: {firstName: string; locale: string}; provider: {id: string; slug: string; status: string} | null; customerLeads: Lead[]; providerLeads: Lead[]};
-
-const CAT_LABELS: Record<Lang, Record<string, string>> = {
-  es: {limpieza: 'Limpieza', reparaciones: 'Reparaciones', mascotas: 'Mascotas', mudanzas: 'Mudanzas', clases: 'Clases', mensajeria: 'Mensajería', 'taxi-traslados': 'Taxi'},
-  ru: {limpieza: 'Уборка', reparaciones: 'Ремонт', mascotas: 'Питомцы', mudanzas: 'Переезды', clases: 'Занятия', mensajeria: 'Курьеры', 'taxi-traslados': 'Такси'},
-  en: {limpieza: 'Cleaning', reparaciones: 'Repairs', mascotas: 'Pets', mudanzas: 'Moving', clases: 'Lessons', mensajeria: 'Delivery', 'taxi-traslados': 'Taxi'}
+type Lead = {
+  id: string; status: string; created_at: string; updated_at: string;
+  categories?: {slug?: string} | null;
+  barrios?: {name_es?: string; name_ru?: string; name_en?: string} | null;
+  providers?: {slug?: string} | null;
 };
 
-const I18N: Record<Lang, {
-  greeting: string; providerProfile: string; becomeProvider: string; becomeProviderDesc: string;
-  incomingRequests: string; myRequests: string; empty: string; openRequest: string; cancelRequest: string;
-  noSession: string; sessionExpired: string; reopen: string; loadError: string; loading: string;
-  openLabel: string;
-  providerStatus: Record<string, string>; leadStatus: Record<string, string>;
-}> = {
-  es: {
-    greeting: 'Hola', providerProfile: 'Mi perfil profesional', becomeProvider: '¿Ofrecés servicios?',
-    becomeProviderDesc: 'Registrate como prestador desde el bot.',
-    incomingRequests: 'Solicitudes recibidas', myRequests: 'Mis solicitudes',
-    empty: 'Todavía no hay solicitudes.', openRequest: 'Abrir solicitud', cancelRequest: 'Cancelar solicitud',
-    noSession: 'Abrí tu gabinete desde el bot de BuenServ.', sessionExpired: 'La sesión venció. Abrí tu gabinete nuevamente desde el bot de BuenServ.', reopen: 'Volver al bot', loadError: 'No pudimos cargar tu gabinete.', loading: 'Cargando…',
-    openLabel: 'Abrir',
-    providerStatus: {draft: 'Borrador', pending: 'En moderación', approved: 'Aprobado', rejected: 'Necesita cambios', suspended: 'Suspendido'},
-    leadStatus: {created: 'Creada', contacted: 'Enviada', provider_replied: 'Respondida', success: 'Finalizada', no_response: 'Sin respuesta', cancelled: 'Cancelada'}
-  },
-  ru: {
-    greeting: 'Привет', providerProfile: 'Мой профиль', becomeProvider: 'Предлагаете услуги?',
-    becomeProviderDesc: 'Зарегистрируйтесь как исполнитель через бота.',
-    incomingRequests: 'Входящие заявки', myRequests: 'Мои заявки',
-    empty: 'Пока нет заявок.', openRequest: 'Посмотреть заявку', cancelRequest: 'Отменить заявку',
-    noSession: 'Откройте кабинет из бота BuenServ.', sessionExpired: 'Сессия истекла. Откройте кабинет заново из BuenServ bot.', reopen: 'Вернуться в бот', loadError: 'Не удалось загрузить кабинет.', loading: 'Загрузка…',
-    openLabel: 'Открыть',
-    providerStatus: {draft: 'Черновик', pending: 'На модерации', approved: 'Одобрен', rejected: 'Нужны правки', suspended: 'Приостановлен'},
-    leadStatus: {created: 'Создана', contacted: 'Отправлена', provider_replied: 'Ответили', success: 'Завершена', no_response: 'Нет ответа', cancelled: 'Отменена'}
-  },
-  en: {
-    greeting: 'Hello', providerProfile: 'My profile', becomeProvider: 'Do you offer services?',
-    becomeProviderDesc: 'Register as a provider via the bot.',
-    incomingRequests: 'Incoming requests', myRequests: 'My requests',
-    empty: 'No requests yet.', openRequest: 'Open request', cancelRequest: 'Cancel request',
-    noSession: 'Open your cabinet from the BuenServ bot.', sessionExpired: 'Session expired. Open your cabinet again from the BuenServ bot.', reopen: 'Back to the bot', loadError: 'Could not load your cabinet.', loading: 'Loading…',
-    openLabel: 'Open',
-    providerStatus: {draft: 'Draft', pending: 'Pending review', approved: 'Approved', rejected: 'Needs changes', suspended: 'Suspended'},
-    leadStatus: {created: 'Created', contacted: 'Sent', provider_replied: 'Replied', success: 'Completed', no_response: 'No response', cancelled: 'Cancelled'}
-  }
+type DashboardData = {
+  profile: {id: string; firstName: string; locale: string};
+  provider: {id: string; slug: string; status: string} | null;
+  customerLeads: Lead[];
+  providerLeads: Lead[];
 };
 
-/** Try multiple strategies to extract Telegram init data from the page. */
-function getTelegramInitData(): string {
-  try {
-    const w = window as unknown as {Telegram?: {WebApp?: {initData?: string}}};
-    if (w.Telegram?.WebApp?.initData) return w.Telegram.WebApp.initData;
-  } catch { /* ignore */ }
-  try {
-    const hash = window.location.hash;
-    if (hash) {
-      const hashParams = new URLSearchParams(hash.replace(/^#/, ''));
-      const tgWebAppData = hashParams.get('tgWebAppData');
-      if (tgWebAppData) return tgWebAppData;
+export default function MiniAppHomePage() {
+  const {t, locale} = useMiniApp();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
+
+  const fetchDashboard = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const res = await apiFetch<DashboardData>('/api/mini-app/dashboard');
+    if (res.error || !res.data) {
+      setError(res.error || t('network_error_title'));
+    } else {
+      setData(res.data);
     }
-  } catch { /* ignore */ }
-  try {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tgWebAppData = urlParams.get('tgWebAppData');
-    if (tgWebAppData) return tgWebAppData;
-  } catch { /* ignore */ }
-  return '';
-}
+    setLoading(false);
+  }, [t]);
 
-function localizedBarrio(barrios: {name_es: string; name_ru: string; name_en: string} | null, lang: Lang): string {
-  if (!barrios) return 'Buenos Aires';
-  if (lang === 'ru' && barrios.name_ru) return barrios.name_ru;
-  if (lang === 'en' && barrios.name_en) return barrios.name_en;
-  return barrios.name_es;
-}
+  useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
-function LeadList({title, leads, lang, onOpen, action, actionLabel, actionStatuses, i18n}: {
-  title: string; leads: Lead[]; lang: Lang;
-  onOpen: (lead: Lead) => void;
-  action?: (lead: Lead) => void; actionLabel?: string; actionStatuses?: string[];
-  i18n: {leadStatus: Record<string, string>; empty: string; openLabel: string};
-}) {
-  const catLabels = CAT_LABELS[lang];
-  return <section style={{display: 'grid', gap: 8}}><h2 style={{fontSize: 17, margin: '8px 0 0'}}>{title}</h2>
-    {leads.length === 0 ? <p style={{margin: 0, color: 'var(--tg-theme-hint-color, #777)'}}>{i18n.empty}</p> : leads.map((lead) => {
-      const catName = catLabels[lead.categories?.slug ?? ''] ?? lead.categories?.slug ?? 'Servicio';
-      const barrioName = localizedBarrio(lead.barrios, lang);
-      return <article key={lead.id} role="button" tabIndex={0} onClick={() => onOpen(lead)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(lead); } }} style={{padding: 14, borderRadius: 12, background: 'var(--tg-theme-secondary-bg-color, #f2f2f2)', cursor: 'pointer'}}>
-        <strong style={{display: 'block'}}>{catName} · {barrioName}</strong>
-        <span style={{fontSize: 14, color: 'var(--tg-theme-hint-color, #777)'}}>{i18n.leadStatus[lead.status] ?? lead.status}</span>
-        <button onClick={(e) => { e.stopPropagation(); onOpen(lead); }} style={{display: 'block', marginTop: 10, border: 0, background: 'var(--tg-theme-button-color, #2481cc)', color: 'var(--tg-theme-button-text-color, #fff)', padding: '8px 12px', borderRadius: 8}}>{i18n.openLabel ?? 'Abrir'}</button>
-        {action && actionStatuses?.includes(lead.status) && <button onClick={(e) => { e.stopPropagation(); action(lead); }} style={{display: 'block', marginTop: 8, border: '1px solid var(--tg-theme-secondary-bg-color, #ddd)', background: 'transparent', color: 'var(--tg-theme-text-color, #111)', padding: '8px 12px', borderRadius: 8}}>{actionLabel}</button>}
-      </article>;
-    })}</section>;
-}
+  if (loading) return <MiniAppShell><LoadingState /></MiniAppShell>;
+  if (error || !data) return <MiniAppShell><ErrorState message={error || undefined} onRetry={fetchDashboard} /></MiniAppShell>;
 
-export default function MiniAppDashboardPage() {
-  const router = useRouter();
-  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
-  const [error, setError] = useState('');
-  const [sessionExpired, setSessionExpired] = useState(false);
-  const [lang, setLang] = useState<Lang>('es');
+  const userName = data.profile.firstName || 'Che';
+  const isProvider = !!data.provider;
 
-  const closeMiniApp = () => {
-    try {
-      const w = window as unknown as {Telegram?: {WebApp?: {close?: () => void}}};
-      w.Telegram?.WebApp?.close?.();
-    } catch { /* ignore — nothing else we can do from here */ }
-  };
+  const toLeadCard = (lead: Lead, providerName?: string): LeadCardData => ({
+    id: lead.id as unknown as number,
+    categorySlug: lead.categories?.slug ?? '',
+    barrioName: locale === 'ru' ? (lead.barrios?.name_ru ?? '') : locale === 'en' ? (lead.barrios?.name_en ?? '') : (lead.barrios?.name_es ?? ''),
+    status: lead.status,
+    createdAt: lead.created_at,
+    updatedAt: lead.updated_at,
+    providerDisplayName: providerName
+  });
 
-  useEffect(() => {
-    // Expand the Mini App to full screen
-    try {
-      const w = window as unknown as {Telegram?: {WebApp?: {expand?: () => void}}};
-      w.Telegram?.WebApp?.expand?.();
-    } catch { /* ignore */ }
-    const initData = getTelegramInitData();
-    if (!initData) {
-      setError(I18N.es.noSession);
-      return;
-    }
-    fetch('/api/mini-app/dashboard', {headers: {'x-telegram-init-data': initData}})
-      .then(async (response) => {
-        const body = await response.json();
-        if (!response.ok) {
-          if (response.status === 401) { setSessionExpired(true); throw new Error(I18N[lang].sessionExpired); }
-          throw new Error(body.error ?? I18N[lang].loadError);
-        }
-        const dash = body as Dashboard;
-        const l = (dash.profile.locale?.startsWith('ru') ? 'ru' : dash.profile.locale?.startsWith('en') ? 'en' : 'es') as Lang;
-        setLang(l);
-        return dash;
-      })
-      .then(setDashboard)
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : I18N[lang].loadError));
-  }, [lang]);
+  return (
+    <MiniAppShell>
+      <div className="space-y-6 pb-4">
+        <div className="pt-2">
+          <h2 className="text-[26px] font-extrabold text-[#1A1F1D] tracking-tight leading-tight">{t('greeting', {name: userName})}</h2>
+          <p className="text-[14px] text-[#66706B] mt-0.5 font-medium">{t('tagline')}</p>
+        </div>
 
-  const submitAction = async (lead: Lead, action: 'cancelled') => {
-    try {
-      const initData = getTelegramInitData();
-      if (!initData) { setError(I18N[lang].noSession); return; }
-      const response = await fetch(`/api/mini-app/leads/${lead.id}/action`, {
-        method: 'POST',
-        headers: {'content-type': 'application/json', 'x-telegram-init-data': initData},
-        body: JSON.stringify({action, idempotencyKey: crypto.randomUUID()})
-      });
-      const body = await response.json();
-      if (!response.ok) {
-        if (response.status === 401) { setSessionExpired(true); throw new Error(I18N[lang].sessionExpired); }
-        throw new Error(body.error ?? I18N[lang].loadError);
-      }
-      window.location.reload();
-    } catch (reason) { setError(reason instanceof Error ? reason.message : I18N[lang].loadError); }
-  };
+        <div className="grid grid-cols-2 gap-3">
+          <Link href="/mini-app/search" onClick={() => triggerHaptic('medium')} className="flex flex-col justify-between p-4 rounded-[18px] bg-[#0FA37F] text-white bs-card-shadow active:scale-[0.98] transition-all hover:bg-[#08735A]">
+            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center mb-3"><Search className="w-5 h-5 text-white" /></div>
+            <div><span className="text-[15px] font-extrabold leading-tight block">{t('top_search_btn')}</span><span className="text-[11px] text-white/80 font-medium">Buenos Aires</span></div>
+          </Link>
+          <Link href="/mini-app/onboarding" onClick={() => triggerHaptic('medium')} className="flex flex-col justify-between p-4 rounded-[18px] bg-white border border-[#DCE4DE] text-[#1A1F1D] bs-card-shadow active:scale-[0.98] transition-all hover:border-[#0FA37F]/50">
+            <div className="w-10 h-10 rounded-full bg-[#EAF7F1] flex items-center justify-center mb-3"><Briefcase className="w-5 h-5 text-[#0FA37F]" /></div>
+            <div><span className="text-[15px] font-extrabold leading-tight block">{t('top_offer_btn')}</span><span className="text-[11px] text-[#66706B] font-medium">BuenServ</span></div>
+          </Link>
+        </div>
 
-  const viewLeadDetail = (lead: Lead) => {
-    router.push(`/mini-app/leads/${lead.id}`);
-  };
+        {data.provider && (
+          <div className="p-4 bg-white rounded-[20px] border border-[#DCE4DE] bs-card-shadow space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-[#0FA37F]" /><span className="text-[15px] font-bold text-[#1A1F1D]">{t('provider_status_card_title')}</span></div>
+              <StatusBadge status={data.provider.status} size="sm" />
+            </div>
+            <div className="flex items-center justify-between text-[13px] pt-2 border-t border-[#DCE4DE]/50">
+              <span className="text-[#66706B] font-medium">{data.provider.slug}</span>
+              <Link href="/mini-app/profile" className="text-[#0FA37F] font-bold flex items-center gap-1 hover:underline">{t('nav_profile')}<ChevronRight className="w-4 h-4" /></Link>
+            </div>
+          </div>
+        )}
 
-  const t = I18N[lang];
-  const shell: React.CSSProperties = {minHeight: '100vh', padding: 16, display: 'grid', gap: 16, background: 'var(--tg-theme-bg-color, #fff)', color: 'var(--tg-theme-text-color, #111)'};
-  if (error) return <main style={shell}>
-    <h1 style={{fontSize: 22, margin: 0}}>BuenServ</h1>
-    <p>{error}</p>
-    {sessionExpired && <button onClick={closeMiniApp} style={{padding: '10px 16px', borderRadius: 10, border: 'none', background: 'var(--tg-theme-button-color, #2481cc)', color: 'var(--tg-theme-button-text-color, #fff)', fontWeight: 600}}>{t.reopen}</button>}
-  </main>;
-  if (!dashboard) return <main style={shell}><p>{t.loading}</p></main>;
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-[19px] font-bold text-[#1A1F1D] tracking-tight">{t('section_categories')}</h3>
+            <Link href="/mini-app/search" className="text-[13px] font-bold text-[#0FA37F] hover:underline flex items-center gap-0.5">{t('nav_search')}<ChevronRight className="w-4 h-4" /></Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {CANONICAL_CATEGORIES.map((cat) => <CategoryTile key={cat.slug} slug={cat.slug} name={cat.name} />)}
+          </div>
+        </div>
 
-  return <main style={shell}>
-    <header><p style={{margin: 0, color: 'var(--tg-theme-hint-color, #777)'}}>BuenServ</p><h1 style={{fontSize: 24, margin: '4px 0'}}>{t.greeting}, {dashboard.profile.firstName || 'amigo'} 👋</h1></header>
-    {dashboard.provider ? <section style={{padding: 14, borderRadius: 12, border: '1px solid var(--tg-theme-secondary-bg-color, #ddd)'}}>
-      <strong>{t.providerProfile}</strong><p style={{margin: '6px 0 0'}}>{t.providerStatus[dashboard.provider.status] ?? dashboard.provider.status}</p>
-    </section> : <section style={{padding: 14, borderRadius: 12, border: '1px solid var(--tg-theme-secondary-bg-color, #ddd)'}}><strong>{t.becomeProvider}</strong><p style={{margin: '6px 0 0'}}>{t.becomeProviderDesc}</p></section>}
-    {dashboard.provider && <LeadList title={t.incomingRequests} leads={dashboard.providerLeads} lang={lang} onOpen={viewLeadDetail} i18n={{leadStatus: t.leadStatus, empty: t.empty, openLabel: t.openLabel}} />}
-    <LeadList title={t.myRequests} leads={dashboard.customerLeads} lang={lang} onOpen={viewLeadDetail} action={(lead) => submitAction(lead, 'cancelled')} actionLabel={t.cancelRequest} actionStatuses={['created', 'contacted', 'provider_replied']} i18n={{leadStatus: t.leadStatus, empty: t.empty, openLabel: t.openLabel}} />
-  </main>;
+        {data.customerLeads.length > 0 && (
+          <div>
+            <h3 className="text-[19px] font-bold text-[#1A1F1D] tracking-tight mb-3">{t('section_my_requests')}</h3>
+            <div className="space-y-3">
+              {data.customerLeads.map((lead) => <LeadCard key={lead.id} lead={toLeadCard(lead, lead.providers?.slug)} role="customer" />)}
+            </div>
+          </div>
+        )}
+
+        {isProvider && data.providerLeads.length > 0 && (
+          <div>
+            <h3 className="text-[19px] font-bold text-[#1A1F1D] tracking-tight mb-3">{t('section_provider_requests')}</h3>
+            <div className="space-y-3">
+              {data.providerLeads.map((lead) => <LeadCard key={lead.id} lead={toLeadCard(lead)} role="provider" />)}
+            </div>
+          </div>
+        )}
+      </div>
+    </MiniAppShell>
+  );
 }
