@@ -2,6 +2,7 @@
 
 import {useEffect, useState} from 'react';
 import {useParams, useRouter} from 'next/navigation';
+import {useMiniApp} from '@/context/MiniAppContext';
 
 type Lang = 'es' | 'ru' | 'en';
 
@@ -110,6 +111,7 @@ export default function ContactPage() {
   const router = useRouter();
   const params = useParams<{providerId: string}>();
   const providerId = params.providerId;
+  const {t: tr, locale} = useMiniApp();
   const [provider, setProvider] = useState<ContactProvider | null>(null);
   const [categoryId, setCategoryId] = useState('');
   const [barrioId, setBarrioId] = useState('');
@@ -127,7 +129,7 @@ export default function ContactPage() {
     } catch { /* ignore */ }
     const initData = getTelegramInitData();
     if (!initData) {
-      setError(I18N.es.noSession);
+      setError(tr('ct_no_session'));
       setLoading(false);
       return;
     }
@@ -142,7 +144,7 @@ export default function ContactPage() {
     fetch(`/api/mini-app/contact?providerId=${encodeURIComponent(providerId)}`, {headers: {'x-telegram-init-data': initData}})
       .then(async (response) => {
         const body = await response.json();
-        if (!response.ok) throw new Error(body.error ?? I18N.es.error);
+        if (!response.ok) throw new Error(body.error ?? tr('ct_error'));
         return body;
       })
       .then((body) => {
@@ -151,14 +153,14 @@ export default function ContactPage() {
         if (body.provider.categories.length > 0) setCategoryId(body.provider.categories[0].id);
         if (body.provider.barrios.length > 0) setBarrioId(body.provider.barrios[0].id);
       })
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : I18N.es.error))
+      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : tr('ct_error')))
       .finally(() => setLoading(false));
   }, [providerId]);
 
   const submit = async () => {
-    if (!categoryId || !barrioId) { setError(I18N[lang].error); return; }
+    if (!categoryId || !barrioId) { setError(tr('ct_error')); return; }
     const initData = getTelegramInitData();
-    if (!initData) { setError(I18N[lang].noSession); return; }
+    if (!initData) { setError(tr('ct_no_session')); return; }
     try {
       setSubmitting(true);
       setError('');
@@ -168,16 +170,21 @@ export default function ContactPage() {
         body: JSON.stringify({providerId, categoryId, barrioId, description, idempotencyKey: crypto.randomUUID()})
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? I18N[lang].error);
+      if (!response.ok) throw new Error(body.error ?? tr('ct_error'));
       setSent(true);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : I18N[lang].error);
+      setError(reason instanceof Error ? reason.message : tr('ct_error'));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const t = I18N[lang];
+  const t = {
+    sent: tr('ct_sent'), sentDesc: tr('ct_sent_desc'), back: tr('ct_back'), loading: tr('ct_loading'),
+    title: tr('ct_title'), category: tr('ct_category'), price: tr('ct_price'), barrio: tr('ct_barrio'),
+    description: tr('ct_description'), descriptionPH: tr('ct_description_ph'),
+    sending: tr('ct_sending'), submit: tr('ct_submit'), error: tr('ct_error'), noSession: tr('ct_no_session')
+  };
   const shell: React.CSSProperties = {minHeight: '100vh', padding: 16, display: 'grid', gap: 16, background: 'var(--tg-theme-bg-color, #fff)', color: 'var(--tg-theme-text-color, #111)'};
 
   if (sent) return <main style={shell}><h1 style={{fontSize: 22, margin: 0}}>{t.sent}</h1><p>{t.sentDesc}</p><button onClick={() => router.push('/mini-app')} style={{padding: '12px 16px', borderRadius: 10, border: 'none', background: 'var(--tg-theme-button-color, #2481cc)', color: '#fff', fontWeight: 600}}>{t.back}</button></main>;

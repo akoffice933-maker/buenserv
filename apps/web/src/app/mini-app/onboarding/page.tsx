@@ -1,6 +1,8 @@
 'use client';
 
 import {useEffect, useState} from 'react';
+import {useMiniApp} from '@/context/MiniAppContext';
+import {CATEGORY_LABELS, CategorySlug} from '@/lib/categories';
 
 type Lang = 'es' | 'ru' | 'en';
 
@@ -138,6 +140,7 @@ function getTelegramInitData(): string {
 }
 
 export default function OnboardingPage() {
+  const {t: tr, locale} = useMiniApp();
   const [lang, setLang] = useState<Lang>('es');
   const [step, setStep] = useState<Step>('category');
   const [category, setCategory] = useState('');
@@ -149,7 +152,18 @@ export default function OnboardingPage() {
   const [started, setStarted] = useState(false);
   const [showLang, setShowLang] = useState(false);
 
-  const t = I18N[lang];
+  const t = {
+    errCat: tr('ob_err_cat'), errBar: tr('ob_err_bar'), errDesc: tr('ob_err_desc'), errPrice: tr('ob_err_price'),
+    descPH: tr('ob_desc_ph'), pricePH: tr('ob_price_ph'), priceNote: tr('ob_price_note'),
+    lblCat: tr('ob_lbl_cat'), lblBar: tr('ob_lbl_bar'), lblDesc: tr('ob_lbl_desc'), lblPrice: tr('ob_lbl_price'),
+    photoDesc: tr('ob_photo_desc'), sending: tr('ob_sending'), submit: tr('ob_submit'),
+    next: tr('ob_next'), back: tr('ob_back'), lang: tr('ob_lang'),
+    submitted: tr('ob_submitted'), submittedDesc: tr('ob_submitted_desc'), error: tr('ob_error'),
+    category: tr('ob_category'), barrio: tr('ob_barrio'), description: tr('ob_description'),
+    price: tr('ob_price'), confirm: tr('ob_confirm'),
+    cat: CATEGORIES.map((slug) => { const m = CATEGORY_LABELS[slug as CategorySlug]; return m ? `${m.icon} ${locale === 'ru' ? m.ru : locale === 'en' ? m.en : m.es}` : slug; }),
+    bar: BARRIOS.map((b) => b.charAt(0).toUpperCase() + b.slice(1))
+  };
 
   useEffect(() => {
     // Expand the Mini App to full screen
