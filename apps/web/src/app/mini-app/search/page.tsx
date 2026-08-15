@@ -1,5 +1,5 @@
 'use client';
-import {useEffect, useState} from 'react';
+import {Suspense, useEffect, useState} from 'react';
 import {useRouter, useSearchParams} from 'next/navigation';
 import {Card, LocaleChip, MiniLocale, getTelegramInitData} from '../components';
 
@@ -14,7 +14,7 @@ type Provider = {
 
 const CAT_ICONS: Record<string, string> = {limpieza: '🧹', reparaciones: '🔧', mascotas: '🐾', mudanzas: '🚚', clases: '📚', mensajeria: '🛵', taxi: '🚕'};
 
-export default function SearchPage() {
+function SearchPageInner() {
   const router = useRouter();
   const params = useSearchParams();
   const [lang, setLang] = useState<MiniLocale>('es-AR');
@@ -102,5 +102,13 @@ export default function SearchPage() {
         </section>
       )}
     </main>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<main style={{minHeight: '100vh', padding: 16, background: 'var(--tg-theme-bg-color, #FAF9F6)', color: 'var(--tg-theme-text-color, #1A1F1D)'}}><p>Cargando…</p></main>}>
+      <SearchPageInner />
+    </Suspense>
   );
 }
