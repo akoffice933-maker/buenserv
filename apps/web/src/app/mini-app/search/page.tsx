@@ -8,6 +8,7 @@ import {FilterSheet} from '@/components/mini-app/FilterSheet';
 import {LoadingState, ErrorState, EmptySearchState} from '@/components/mini-app/FeedbackStates';
 import {apiFetch, triggerHaptic} from '@/lib/telegram-client';
 import {Search, SlidersHorizontal, X, MapPin} from 'lucide-react';
+import {CATEGORY_LABELS, CategorySlug} from '@/lib/categories';
 
 type RawProvider = {
   id: string; slug: string; status: string; photo_path?: string | null;
@@ -73,22 +74,35 @@ function SearchContent() {
     setIsFilterSheetOpen(false);
   };
 
-  const providers: ProviderData[] = (data?.providers ?? []).map((p) => {
+  const q = searchQuery.trim().toLowerCase();
+  const providers: ProviderData[] = (data?.providers ?? [])
+    .filter((p) => {
+      if (!q) return true;
+      const profile = one(p.profiles);
+      const name = (profile?.display_name ?? '').toLowerCase();
+      const cats = (p.provider_categories ?? []).map((pc) => { const c = one(pc.categories); return c?.slug ?? ''; });
+      const bars = (p.provider_barrios ?? []).map((pb) => { const b = one(pb.barrios); return b ? (locale === 'ru' ? b.name_ru : locale === 'en' ? b.name_en : b.name_es).toLowerCase() : ''; });
+      return name.includes(q) || cats.some((c) => c.includes(q)) || bars.some((b) => b.includes(q));
+    })
+    .map((p) => {
     const profile = one(p.profiles);
     const cats = (p.provider_categories ?? []).map((pc) => {
       const c = one(pc.categories);
-      return {slug: c?.slug ?? '', title: c?.slug ?? '', priceFromArs: pc.price_from_ars ?? undefined};
+      const slug = c?.slug ?? '';
+      const meta = CATEGORY_LABELS[slug as CategorySlug];
+      const title = meta ? (locale === 'ru' ? meta.ru : locale === 'en' ? meta.en : meta.es) : slug;
+      return {slug, title, priceFromArs: pc.price_from_ars ?? undefined};
     });
     const bars = (p.provider_barrios ?? []).map((pb) => {
       const b = one(pb.barrios);
       return locale === 'ru' ? (b?.name_ru ?? '') : locale === 'en' ? (b?.name_en ?? '') : (b?.name_es ?? '');
     }).filter(Boolean);
     return {
-      id: p.id as unknown as number,
+      id: p.id,
       displayName: profile?.display_name ?? 'Profesional',
       status: p.status,
       isVerified: p.status === 'approved',
-      priceFromArs: cats[0]?.priceFromArs ?? 0,
+      priceFromArs: cats[0]?.priceFromArs ?? null,
       categories: cats,
       barrios: bars
     };
