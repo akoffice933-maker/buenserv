@@ -7,6 +7,8 @@ import {MiniAppShell} from '@/components/mini-app/MiniAppShell';
 import {PrimaryButton, SecondaryButton} from '@/components/mini-app/Buttons';
 import {LoadingState, ErrorState} from '@/components/mini-app/FeedbackStates';
 import {formatDateTime} from '@/lib/format';
+import {getTelegramInitData} from '@/lib/telegram-client';
+import {CATEGORY_LABELS, CategorySlug} from '@/lib/categories';
 
 type Lang = 'es' | 'ru' | 'en';
 
@@ -48,12 +50,6 @@ type LeadDetail = {
   isProvider: boolean;
 };
 
-const CAT_LABELS: Record<Lang, Record<string, string>> = {
-  es: {limpieza: 'Limpieza', reparaciones: 'Reparaciones', mascotas: 'Mascotas', mudanzas: 'Mudanzas', clases: 'Clases', mensajeria: 'Mensajería', 'taxi-traslados': 'Taxi'},
-  ru: {limpieza: 'Уборка', reparaciones: 'Ремонт', mascotas: 'Питомцы', mudanzas: 'Переезды', clases: 'Занятия', mensajeria: 'Курьеры', 'taxi-traslados': 'Такси'},
-  en: {limpieza: 'Cleaning', reparaciones: 'Repairs', mascotas: 'Pets', mudanzas: 'Moving', clases: 'Lessons', mensajeria: 'Delivery', 'taxi-traslados': 'Taxi'}
-};
-
 function localizedBarrio(barrios: {name_es: string; name_ru: string; name_en: string} | null, lang: Lang): string {
   if (!barrios) return 'Buenos Aires';
   if (lang === 'ru' && barrios.name_ru) return barrios.name_ru;
@@ -72,27 +68,6 @@ export default function LeadDetailPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [messageBody, setMessageBody] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
-
-  function getTelegramInitData(): string {
-    try {
-      const w = window as unknown as {Telegram?: {WebApp?: {initData?: string}}};
-      if (w.Telegram?.WebApp?.initData) return w.Telegram.WebApp.initData;
-    } catch { /* ignore */ }
-    try {
-      const hash = window.location.hash;
-      if (hash) {
-        const hashParams = new URLSearchParams(hash.replace(/^#/, ''));
-        const tgWebAppData = hashParams.get('tgWebAppData');
-        if (tgWebAppData) return tgWebAppData;
-      }
-    } catch { /* ignore */ }
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const tgWebAppData = urlParams.get('tgWebAppData');
-      if (tgWebAppData) return tgWebAppData;
-    } catch { /* ignore */ }
-    return '';
-  }
 
   function submitAction(action: 'provider_opened' | 'provider_replied' | 'customer_replied' | 'provider_service_completed' | 'customer_completion_confirmed' | 'cancelled') {
     const initData = getTelegramInitData();
@@ -229,12 +204,19 @@ export default function LeadDetailPage() {
       success: tr('ld_status_success'), no_response: tr('ld_status_no_response'), cancelled: tr('ld_status_cancelled')
     } as Record<string, string>
   };
-  const catName = CAT_LABELS[lang][lead.category ?? ''] ?? lead.category ?? 'Servicio';
+  const catMeta = CATEGORY_LABELS[(lead.category ?? '') as CategorySlug];
+  const catName = catMeta ? (lang === 'ru' ? catMeta.ru : lang === 'en' ? catMeta.en : catMeta.es) : (lead.category ?? 'Servicio');
   const barrioName = localizedBarrio(lead.barrio, lang);
   const providerName = lead.provider ? lead.provider.profile.display_name : null;
   const providerStatusText = lead.provider ? t.providerStatus[lead.provider.status] ?? lead.provider.status : null;
   const leadStatusText = t.leadStatus[lead.status] ?? lead.status;
-  const canCompose = !['success', 'cancelled', 'no_response'].includes(lead.status);
+  // Composer is enabled only when the lifecycle RPC would accept a message:
+  // provider may reply from provider_notified / provider_opened / customer_replied;
+  // customer may reply only after provider_replied.
+  const lastEvent = lead.lastEventType ?? '';
+  const canCompose =
+    (lead.isProvider && ['provider_notified', 'provider_opened', 'customer_replied'].includes(lastEvent)) ||
+    (lead.isCustomer && lastEvent === 'provider_replied');
 
   const eventLabel = (event: {event_type: string; actor_type: string}) => {
     if (event.actor_type === 'provider') {
@@ -335,7 +317,7 @@ export default function LeadDetailPage() {
           </div>
         )}
 
-        <SecondaryButton onClick={() => router.push('/mini-app')}>{t.becomeProvider}</SecondaryButton>
+        <SecondaryButton onClick={() => router.push('/mini-app')}>{tr('ct_back')}</SecondaryButton>
       </div>
     </MiniAppShell>
   );

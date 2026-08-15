@@ -31,8 +31,10 @@ const ADMIN_NOTIFICATION_COPY: Record<string, string> = {
   admin_outbox_failed: '📨 Outbox permanently failed. Usá /alerts para ver el detalle.'
 };
 
-export function buildNotificationPayload(type: string) {
+export function buildNotificationPayload(type: string, leadId?: string) {
   const text = NOTIFICATION_COPY[type] ?? NOTIFICATION_COPY.customer_provider_reply;
+  // Deep-link straight into the lead chat when we know the lead id.
+  const target = leadId ? `/mini-app/leads/${leadId}` : '/mini-app';
 
   return {
     text,
@@ -40,7 +42,7 @@ export function buildNotificationPayload(type: string) {
       inline_keyboard: [[
         {
           text: 'Abrí tu gabinete',
-          web_app: {url: `${process.env.NEXT_PUBLIC_APP_URL}/mini-app`}
+          web_app: {url: `${process.env.NEXT_PUBLIC_APP_URL}${target}`}
         }
       ]]
     }
@@ -75,7 +77,7 @@ export async function deliverOutboxBatch(batchSize = 20): Promise<DeliveryResult
         ? {chat_id: item.telegram_user_id, ...buildAdminNotificationPayload(item.notification_type)}
         : supportReplyBody
           ? {chat_id: item.telegram_user_id, text: `💬 Respuesta del soporte de BuenServ:\n\n${supportReplyBody}`}
-          : {chat_id: item.telegram_user_id, ...buildNotificationPayload(item.notification_type)};
+          : {chat_id: item.telegram_user_id, ...buildNotificationPayload(item.notification_type, item.payload?.lead_id)};
       const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: {'content-type': 'application/json'},
