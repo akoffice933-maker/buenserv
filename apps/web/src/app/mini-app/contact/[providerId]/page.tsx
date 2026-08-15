@@ -3,6 +3,10 @@
 import {useEffect, useState} from 'react';
 import {useParams, useRouter} from 'next/navigation';
 import {useMiniApp} from '@/context/MiniAppContext';
+import {MiniAppShell} from '@/components/mini-app/MiniAppShell';
+import {PrimaryButton, SecondaryButton} from '@/components/mini-app/Buttons';
+import {LoadingState, ErrorState} from '@/components/mini-app/FeedbackStates';
+import {formatPrice} from '@/lib/format';
 
 type Lang = 'es' | 'ru' | 'en';
 
@@ -18,72 +22,6 @@ const CAT_LABELS: Record<Lang, Record<string, string>> = {
   es: {limpieza: 'Limpieza', reparaciones: 'Reparaciones', mascotas: 'Mascotas', mudanzas: 'Mudanzas', clases: 'Clases', mensajeria: 'Mensajería', 'taxi-traslados': 'Taxi'},
   ru: {limpieza: 'Уборка', reparaciones: 'Ремонт', mascotas: 'Питомцы', mudanzas: 'Переезды', clases: 'Занятия', mensajeria: 'Курьеры', 'taxi-traslados': 'Такси'},
   en: {limpieza: 'Cleaning', reparaciones: 'Repairs', mascotas: 'Pets', mudanzas: 'Moving', clases: 'Lessons', mensajeria: 'Delivery', 'taxi-traslados': 'Taxi'}
-};
-
-const I18N: Record<Lang, {
-  title: string;
-  category: string;
-  barrio: string;
-  description: string;
-  descriptionPH: string;
-  submit: string;
-  sending: string;
-  sent: string;
-  sentDesc: string;
-  error: string;
-  noSession: string;
-  loading: string;
-  back: string;
-  price: string;
-}> = {
-  es: {
-    title: 'Contactar al prestador',
-    category: '¿Qué servicio necesitás?',
-    barrio: '¿En qué barrio?',
-    description: 'Contanos qué necesitás (opcional)',
-    descriptionPH: 'Ej: necesito limpieza de 2 ambientes…',
-    submit: 'Enviar solicitud',
-    sending: 'Enviando…',
-    sent: '✅ Solicitud enviada',
-    sentDesc: 'El prestador recibió tu solicitud y te va a responder.',
-    error: 'No pudimos enviar tu solicitud.',
-    noSession: 'Abrí tu gabinete desde el bot de BuenServ.',
-    loading: 'Cargando…',
-    back: 'Volver',
-    price: 'Desde'
-  },
-  ru: {
-    title: 'Связаться с исполнителем',
-    category: 'Какая услуга нужна?',
-    barrio: 'В каком районе?',
-    description: 'Расскажите, что нужно (необязательно)',
-    descriptionPH: 'Например: нужна уборка 2 комнат…',
-    submit: 'Отправить заявку',
-    sending: 'Отправка…',
-    sent: '✅ Заявка отправлена',
-    sentDesc: 'Исполнитель получил вашу заявку и скоро ответит.',
-    error: 'Не удалось отправить заявку.',
-    noSession: 'Откройте кабинет из бота BuenServ.',
-    loading: 'Загрузка…',
-    back: 'Назад',
-    price: 'От'
-  },
-  en: {
-    title: 'Contact provider',
-    category: 'What service do you need?',
-    barrio: 'Which neighbourhood?',
-    description: 'Tell us what you need (optional)',
-    descriptionPH: 'E.g. I need cleaning for 2 rooms…',
-    submit: 'Send request',
-    sending: 'Sending…',
-    sent: '✅ Request sent',
-    sentDesc: 'The provider received your request and will reply soon.',
-    error: 'Could not send your request.',
-    noSession: 'Open your cabinet from the BuenServ bot.',
-    loading: 'Loading…',
-    back: 'Back',
-    price: 'From'
-  }
 };
 
 function getTelegramInitData(): string {
@@ -133,7 +71,6 @@ export default function ContactPage() {
       setLoading(false);
       return;
     }
-    // Hydrate locale from the canonical profile (profiles.locale is the source of truth).
     fetch('/api/mini-app/profile', {headers: {'x-telegram-init-data': initData}})
       .then((r) => r.json())
       .then((body) => {
@@ -149,12 +86,12 @@ export default function ContactPage() {
       })
       .then((body) => {
         setProvider(body.provider);
-        // Default to first category/barrio for convenience, but the customer can change it.
         if (body.provider.categories.length > 0) setCategoryId(body.provider.categories[0].id);
         if (body.provider.barrios.length > 0) setBarrioId(body.provider.barrios[0].id);
       })
       .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : tr('ct_error')))
       .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [providerId]);
 
   const submit = async () => {
@@ -185,50 +122,68 @@ export default function ContactPage() {
     description: tr('ct_description'), descriptionPH: tr('ct_description_ph'),
     sending: tr('ct_sending'), submit: tr('ct_submit'), error: tr('ct_error'), noSession: tr('ct_no_session')
   };
-  const shell: React.CSSProperties = {minHeight: '100vh', padding: 16, display: 'grid', gap: 16, background: 'var(--tg-theme-bg-color, #fff)', color: 'var(--tg-theme-text-color, #111)'};
 
-  if (sent) return <main style={shell}><h1 style={{fontSize: 22, margin: 0}}>{t.sent}</h1><p>{t.sentDesc}</p><button onClick={() => router.push('/mini-app')} style={{padding: '12px 16px', borderRadius: 10, border: 'none', background: 'var(--tg-theme-button-color, #2481cc)', color: '#fff', fontWeight: 600}}>{t.back}</button></main>;
-  if (loading) return <main style={shell}><p>{t.loading}</p></main>;
-  if (error) return <main style={shell}><h1 style={{fontSize: 22, margin: 0}}>BuenServ</h1><p>{error}</p><button onClick={() => router.push('/mini-app')} style={{padding: '12px 16px', borderRadius: 10, border: 'none', background: 'var(--tg-theme-button-color, #2481cc)', color: '#fff', fontWeight: 600}}>{t.back}</button></main>;
-  if (!provider) return <main style={shell}><p>{t.loading}</p></main>;
+  if (sent) return (
+    <MiniAppShell showBack showBottomNav={false}>
+      <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-6 max-w-sm mx-auto my-auto">
+        <div className="w-20 h-20 rounded-full bg-[#EAF7F1] text-[#0FA37F] flex items-center justify-center shadow-lg border border-[#0FA37F]/20"><span className="text-4xl">✅</span></div>
+        <div className="space-y-2"><h2 className="text-[24px] font-extrabold text-[#1A1F1D] tracking-tight">{t.sent}</h2><p className="text-[15px] text-[#66706B] leading-relaxed">{t.sentDesc}</p></div>
+        <div className="w-full pt-4 space-y-3">
+          <PrimaryButton onClick={() => router.push('/mini-app')}>{t.back}</PrimaryButton>
+        </div>
+      </div>
+    </MiniAppShell>
+  );
+  if (loading) return <MiniAppShell showBack showBottomNav={false}><LoadingState /></MiniAppShell>;
+  if (error) return <MiniAppShell showBack showBottomNav={false}><ErrorState message={error} onRetry={() => router.push('/mini-app')} /></MiniAppShell>;
+  if (!provider) return <MiniAppShell showBack showBottomNav={false}><LoadingState /></MiniAppShell>;
 
   const catLabels = CAT_LABELS[lang];
   const barrioName = (b: ContactProvider['barrios'][number]) => lang === 'ru' ? b.nameRu : lang === 'en' ? b.nameEn : b.nameEs;
 
-  return <main style={shell}>
-    <header><p style={{margin: 0, color: 'var(--tg-theme-hint-color, #777)'}}>BuenServ</p><h1 style={{fontSize: 22, margin: '4px 0'}}>{t.title}</h1><p style={{margin: 0, color: 'var(--tg-theme-hint-color, #777)'}}>{provider.displayName}</p></header>
+  return (
+    <MiniAppShell title={t.title} showBack backHref={`/mini-app/providers/${provider.id}`} showBottomNav={false}>
+      <div className="space-y-5 pb-6">
+        <div className="bg-white rounded-[20px] p-5 border border-[#DCE4DE]/80 bs-card-shadow">
+          <p className="text-[13px] text-[#66706B] font-medium mb-1">BuenServ</p>
+          <h1 className="text-[22px] font-extrabold text-[#1A1F1D] tracking-tight">{provider.displayName}</h1>
+        </div>
 
-    <section style={{display: 'grid', gap: 8}}>
-      <h2 style={{fontSize: 17, margin: 0}}>{t.category}</h2>
-      {provider.categories.map((c) => (
-        <button key={c.id} onClick={() => setCategoryId(c.id)}
-          style={{padding: 14, borderRadius: 12, border: `1px solid ${categoryId === c.id ? 'var(--tg-theme-button-color, #2481cc)' : 'var(--tg-theme-secondary-bg-color, #ddd)'}`, background: 'var(--tg-theme-secondary-bg-color, #f5f5f5)', color: 'var(--tg-theme-text-color, #111)', fontSize: 16, textAlign: 'left', cursor: 'pointer'}}>
-          {catLabels[c.slug] ?? c.slug} <span style={{color: 'var(--tg-theme-hint-color, #777)', fontSize: 13}}>· {t.price} ${c.priceFromArs.toLocaleString()} ARS</span>
-        </button>
-      ))}
-    </section>
+        <div className="bg-white rounded-[20px] p-5 border border-[#DCE4DE]/80 bs-card-shadow space-y-3">
+          <h2 className="text-[16px] font-bold text-[#1A1F1D]">{t.category}</h2>
+          <div className="space-y-2">
+            {provider.categories.map((c) => (
+              <button key={c.id} onClick={() => setCategoryId(c.id)}
+                className={`w-full min-h-[48px] px-4 py-3 rounded-[14px] text-left text-[15px] font-semibold transition-all ${categoryId === c.id ? 'bg-[#EAF7F1] text-[#0FA37F] border border-[#0FA37F]/30' : 'bg-[#FAF9F6] text-[#1A1F1D] border border-[#DCE4DE] hover:bg-slate-50'}`}>
+                {catLabels[c.slug] ?? c.slug} <span className="text-[13px] text-[#66706B] font-medium">· {t.price} ${formatPrice(c.priceFromArs, locale)} ARS</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
-    <section style={{display: 'grid', gap: 8}}>
-      <h2 style={{fontSize: 17, margin: 0}}>{t.barrio}</h2>
-      {provider.barrios.map((b) => (
-        <button key={b.id} onClick={() => setBarrioId(b.id)}
-          style={{padding: 14, borderRadius: 12, border: `1px solid ${barrioId === b.id ? 'var(--tg-theme-button-color, #2481cc)' : 'var(--tg-theme-secondary-bg-color, #ddd)'}`, background: 'var(--tg-theme-secondary-bg-color, #f5f5f5)', color: 'var(--tg-theme-text-color, #111)', fontSize: 16, textAlign: 'left', cursor: 'pointer'}}>
-          {barrioName(b)}
-        </button>
-      ))}
-    </section>
+        <div className="bg-white rounded-[20px] p-5 border border-[#DCE4DE]/80 bs-card-shadow space-y-3">
+          <h2 className="text-[16px] font-bold text-[#1A1F1D]">{t.barrio}</h2>
+          <div className="space-y-2">
+            {provider.barrios.map((b) => (
+              <button key={b.id} onClick={() => setBarrioId(b.id)}
+                className={`w-full min-h-[48px] px-4 py-3 rounded-[14px] text-left text-[15px] font-semibold transition-all ${barrioId === b.id ? 'bg-[#EAF7F1] text-[#0FA37F] border border-[#0FA37F]/30' : 'bg-[#FAF9F6] text-[#1A1F1D] border border-[#DCE4DE] hover:bg-slate-50'}`}>
+                {barrioName(b)}
+              </button>
+            ))}
+          </div>
+        </div>
 
-    <section style={{display: 'grid', gap: 8}}>
-      <h2 style={{fontSize: 17, margin: 0}}>{t.description}</h2>
-      <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t.descriptionPH} rows={4}
-        style={{padding: 12, borderRadius: 10, border: '1px solid var(--tg-theme-secondary-bg-color, #ddd)', background: 'var(--tg-theme-secondary-bg-color, #f5f5f5)', color: 'var(--tg-theme-text-color, #111)', font: 'inherit', resize: 'vertical'}} />
-    </section>
+        <div className="bg-white rounded-[20px] p-5 border border-[#DCE4DE]/80 bs-card-shadow space-y-3">
+          <h2 className="text-[16px] font-bold text-[#1A1F1D]">{t.description}</h2>
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t.descriptionPH} rows={4}
+            className="w-full min-h-[100px] px-4 py-3 rounded-[14px] bg-[#FAF9F6] border border-[#DCE4DE] text-[15px] text-[#1A1F1D] placeholder-[#66706B] focus:outline-hidden focus:border-[#0FA37F] focus:ring-2 focus:ring-[#0FA37F]/20 transition-all resize-y" />
+        </div>
 
-    {error && <p style={{color: 'var(--tg-theme-destructive-text-color, red)', fontSize: 13, margin: 0}}>{error}</p>}
+        {error && <p className="text-[13px] text-[#B84040] bg-red-50 border border-red-200 rounded-[10px] p-2.5">{error}</p>}
 
-    <button onClick={submit} disabled={submitting}
-      style={{padding: '14px 16px', fontSize: 16, border: 'none', borderRadius: 10, background: submitting ? 'var(--tg-theme-secondary-bg-color, #ccc)' : 'var(--tg-theme-button-color, #2481cc)', color: submitting ? 'var(--tg-theme-hint-color, #999)' : '#fff', fontWeight: 600, cursor: submitting ? 'default' : 'pointer'}}>
-      {submitting ? t.sending : t.submit}
-    </button>
-  </main>;
+        <PrimaryButton onClick={submit} loading={submitting}>{submitting ? t.sending : t.submit}</PrimaryButton>
+        <SecondaryButton onClick={() => router.push('/mini-app')}>{t.back}</SecondaryButton>
+      </div>
+    </MiniAppShell>
+  );
 }
