@@ -36,7 +36,18 @@ export default function ProviderDetailPage() {
 
   useEffect(() => { fetchProvider(); }, [fetchProvider]);
 
-  const handleOpenBot = () => { triggerHaptic('light'); if (typeof window !== 'undefined') window.open('https://t.me/BuenServ_bot', '_blank'); };
+  const handleOpenBot = () => {
+    const url = 'https://t.me/BuenServ_bot';
+    triggerHaptic('light');
+    try {
+      const w = window as unknown as {Telegram?: {WebApp?: {openTelegramLink?: (u: string) => void}}};
+      if (w.Telegram?.WebApp?.openTelegramLink) {
+        w.Telegram.WebApp.openTelegramLink(url);
+        return;
+      }
+    } catch { /* fall through to browser fallback */ }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   if (loading) return <MiniAppShell showBack><LoadingState /></MiniAppShell>;
   if (error || !data) return <MiniAppShell showBack><ErrorState message={error || undefined} onRetry={fetchProvider} /></MiniAppShell>;
@@ -83,7 +94,7 @@ export default function ProviderDetailPage() {
         </div>
 
         <PrimaryButton onClick={() => router.push(`/mini-app/contact/${p.id}`)}>{t('btn_send_request')}</PrimaryButton>
-        <SecondaryButton onClick={handleOpenBot}>{t('btn_contact_telegram')}</SecondaryButton>
+        <SecondaryButton onClick={handleOpenBot}>{t('btn_open_bot')}</SecondaryButton>
       </div>
     </MiniAppShell>
   );
