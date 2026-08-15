@@ -2,6 +2,8 @@ import {NextRequest, NextResponse} from 'next/server';
 import {z} from 'zod';
 import {createAdminClient} from '@/lib/supabase/admin';
 import {getMiniAppInitData, resolveMiniAppIdentity} from '@/lib/telegram/mini-app-auth';
+import {CATEGORY_LABELS, isCategorySlug} from '@/lib/categories';
+import {one} from '@/lib/relations';
 
 export async function GET(request: NextRequest, context: {params: Promise<{providerId: string}>}) {
   try {
@@ -15,19 +17,44 @@ export async function GET(request: NextRequest, context: {params: Promise<{provi
     const {data: provider, error} = await supabase
       .from('providers')
       .select(`
-        id, slug, status, photo_path, rating, reviews_count,
-        profiles!providers_profile_id_fkey(display_name),
-        provider_categories!provider_categories_provider_id_fkey(category_id, price_from_ars, categories!provider_categories_category_id_fkey(slug, name_es, name_ru, name_en)),
+        id, slug, status, photo_path,
+        profiles!providers_profile_id_fkey!inner(display_name, telegram_user_id),
+        provider_categories!provider_categories_provider_id_fkey(category_id, price_from_ars, categories!provider_categories_category_id_fkey(slug)),
         provider_barrios!provider_barrios_provider_id_fkey(barrio_id, barrios!provider_barrios_barrio_id_fkey(slug, name_es, name_ru, name_en))
       `)
       .eq('id', providerId)
       .eq('status', 'approved')
-      .not('profiles.telegram_user_id', 'is', null)
       .maybeSingle();
     if (error) throw error;
     if (!provider) return NextResponse.json({error: 'Provider not found'}, {status: 404});
 
-    return NextResponse.json({provider});
+    const profile = one(provider.profiles as {display_name?: string | null} | {display_name?: string | null}[] | null);
+    // Enrich category slugs with canonical labels/icons.
+    const categories = (provider.provider_categories ?? []).map((pc: {category_id: string; price_from_ars?: number | null; categories: {slug: string} | {slug: string}[] | null}) => {
+      const cat = one(pc.categories as {slug: string} | {slug: string}[] | null);
+      const slug = cat?.slug ?? '';
+      const meta = isCategorySlug(slug) ? CATEGORY_LABELS[slug] : null;
+      return {
+        categoryId: pc.category_id,
+        priceFromArs: pc.price_from_ars ?? null,
+        slug,
+        name_es: meta?.es ?? slug,
+        name_ru: meta?.ru ?? slug,
+        name_en: meta?.en ?? slug,
+        icon: meta?.icon ?? '•'
+      };
+    });
+
+    return NextResponse.json({
+      provider: {
+        id: provider.id,
+        slug: provider.slug,
+        photoPath: provider.photo_path ?? null,
+        displayName: profile?.display_name ?? 'Profesional',
+        categories,
+        barrios: provider.provider_barrios ?? []
+      }
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to load provider';
     const status = message.includes('init data') || message.includes('signature') ? 401 : 500;

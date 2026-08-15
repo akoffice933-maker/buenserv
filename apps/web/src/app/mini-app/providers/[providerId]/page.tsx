@@ -4,10 +4,9 @@ import {useParams, useRouter} from 'next/navigation';
 import {Card, LocaleChip, MiniLocale, PrimaryButton, SecondaryButton, getTelegramInitData} from '../../components';
 
 type Provider = {
-  id: string; slug: string; photo_path?: string | null; rating: number; reviews_count: number;
-  profiles: {display_name?: string | null} | null;
-  provider_categories: Array<{price_from_ars?: number | null; categories: {slug: string; name_es: string; name_ru: string; name_en: string} | null}>;
-  provider_barrios: Array<{barrios: {slug: string; name_es: string; name_ru: string; name_en: string} | null}>;
+  id: string; slug: string; photoPath?: string | null; displayName: string;
+  categories: Array<{categoryId: string; priceFromArs?: number | null; slug: string; name_es: string; name_ru: string; name_en: string; icon: string}>;
+  barrios: Array<{barrio_id: string; barrios: {slug: string; name_es: string; name_ru: string; name_en: string} | null}>;
 };
 
 export default function ProviderPage() {
@@ -49,7 +48,7 @@ export default function ProviderPage() {
             <div style={{display: 'flex', gap: 14, alignItems: 'center'}}>
               <div style={{width: 64, height: 64, borderRadius: 16, background: 'rgba(15,163,127,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30}}>🧑‍🔧</div>
               <div>
-                <h1 style={{fontSize: 22, margin: 0}}>{provider.profiles?.display_name ?? 'Profesional'}</h1>
+                <h1 style={{fontSize: 22, margin: 0}}>{provider.displayName}</h1>
                 <span style={{fontSize: 14, color: 'var(--tg-theme-hint-color, #66706B)'}}>{t('Verificado por BuenServ', 'Проверено BuenServ', 'Verified by BuenServ')}</span>
               </div>
             </div>
@@ -57,10 +56,10 @@ export default function ProviderPage() {
 
           <Card>
             <strong style={{display: 'block', marginBottom: 8}}>{t('Servicios', 'Услуги', 'Services')}</strong>
-            {provider.provider_categories?.map((pc, i) => (
-              <div key={i} style={{display: 'flex', justifyContent: 'space-between', padding: '6px 0'}}>
-                <span>{pc.categories ? catName(pc.categories) : ''}</span>
-                {pc.price_from_ars ? <span style={{fontWeight: 600}}>${pc.price_from_ars}</span> : null}
+            {provider.categories.map((c) => (
+              <div key={c.categoryId} style={{display: 'flex', justifyContent: 'space-between', padding: '6px 0'}}>
+                <span>{c.icon} {catName(c)}</span>
+                {c.priceFromArs ? <span style={{fontWeight: 600}}>${c.priceFromArs}</span> : null}
               </div>
             ))}
           </Card>
@@ -68,7 +67,7 @@ export default function ProviderPage() {
           <Card>
             <strong style={{display: 'block', marginBottom: 8}}>{t('Zonas', 'Районы', 'Areas')}</strong>
             <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
-              {provider.provider_barrios?.map((pb, i) => pb.barrios ? (
+              {provider.barrios?.map((pb, i) => pb.barrios ? (
                 <span key={i} style={{background: 'rgba(15,163,127,.1)', color: '#0FA37F', borderRadius: 10, padding: '6px 10px', fontSize: 13}}>{barrioName(pb.barrios)}</span>
               ) : null)}
             </div>

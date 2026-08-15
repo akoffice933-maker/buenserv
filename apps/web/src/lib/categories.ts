@@ -20,6 +20,17 @@ export const CATEGORY_META: Record<CategorySlug, {image: string; aliases: readon
   'taxi-traslados': {image: 'category-taxi.webp', aliases: ['taxi', 'traslados', 'taxi y traslados', 'такси', 'transfers']}
 };
 
+/** Canonical presentation labels + icon for each category slug (single source of truth). */
+export const CATEGORY_LABELS: Record<CategorySlug, {es: string; ru: string; en: string; icon: string}> = {
+  limpieza: {es: 'Limpieza', ru: 'Уборка', en: 'Cleaning', icon: '🧹'},
+  reparaciones: {es: 'Reparaciones', ru: 'Ремонт', en: 'Repairs', icon: '🔧'},
+  mascotas: {es: 'Mascotas', ru: 'Питомцы', en: 'Pets', icon: '🐾'},
+  mudanzas: {es: 'Mudanzas', ru: 'Переезды', en: 'Moving', icon: '🚚'},
+  clases: {es: 'Clases', ru: 'Занятия', en: 'Lessons', icon: '📚'},
+  mensajeria: {es: 'Mensajería', ru: 'Курьеры', en: 'Delivery', icon: '🛵'},
+  'taxi-traslados': {es: 'Taxi y traslados', ru: 'Такси и трансферы', en: 'Taxi & transfers', icon: '🚕'}
+};
+
 export function isCategorySlug(value: string): value is CategorySlug {
   return CATEGORY_SLUGS.includes(value as CategorySlug);
 }

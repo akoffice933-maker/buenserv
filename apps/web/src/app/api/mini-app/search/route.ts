@@ -1,6 +1,7 @@
 import {NextRequest, NextResponse} from 'next/server';
 import {createAdminClient} from '@/lib/supabase/admin';
 import {getMiniAppInitData, resolveMiniAppIdentity} from '@/lib/telegram/mini-app-auth';
+import {CATEGORY_LABELS, isCategorySlug} from '@/lib/categories';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,10 +13,10 @@ export async function GET(request: NextRequest) {
     const categorySlug = request.nextUrl.searchParams.get('category');
     const barrioSlug = request.nextUrl.searchParams.get('barrio');
 
-    // Categories (with truthful provider counts only when a filter is applied).
+    // Categories: only real DB fields; presentation labels come from the canonical map.
     const {data: categories, error: catError} = await supabase
       .from('categories')
-      .select('id, slug, name_es, name_ru, name_en, icon')
+      .select('id, slug, sort_order')
       .eq('active', true)
       .order('sort_order', {ascending: true});
     if (catError) throw catError;
@@ -27,30 +28,58 @@ export async function GET(request: NextRequest) {
       .order('name_es', {ascending: true});
     if (barrioError) throw barrioError;
 
-    // Approved providers with canonical Telegram identity.
+    // Resolve filter slugs to IDs first (robust, avoids fragile nested filters).
+    let categoryId: string | null = null;
+    if (categorySlug) {
+      const {data: cat} = await supabase.from('categories').select('id').eq('slug', categorySlug).maybeSingle();
+      if (!cat) return NextResponse.json({categories: categories ?? [], barrios: barrios ?? [], providers: []});
+      categoryId = cat.id;
+    }
+    let barrioId: string | null = null;
+    if (barrioSlug) {
+      const {data: bar} = await supabase.from('barrios').select('id').eq('slug', barrioSlug).maybeSingle();
+      if (!bar) return NextResponse.json({categories: categories ?? [], barrios: barrios ?? [], providers: []});
+      barrioId = bar.id;
+    }
+
+    // Resolve provider IDs matching category/barrio filters.
+    let providerIds: string[] | null = null;
+    if (categoryId) {
+      const {data: rows} = await supabase.from('provider_categories').select('provider_id').eq('category_id', categoryId);
+      providerIds = rows?.map((r) => r.provider_id) ?? [];
+    }
+    if (barrioId) {
+      const {data: rows} = await supabase.from('provider_barrios').select('provider_id').eq('barrio_id', barrioId);
+      const barrioIds = rows?.map((r) => r.provider_id) ?? [];
+      providerIds = providerIds === null ? barrioIds : providerIds.filter((id) => barrioIds.includes(id));
+    }
+
+    // Approved providers with canonical Telegram identity (explicit inner relation).
     let query = supabase
       .from('providers')
       .select(`
-        id, slug, status, photo_path, rating, reviews_count,
-        profiles!providers_profile_id_fkey(display_name),
-        provider_categories!provider_categories_provider_id_fkey(category_id, price_from_ars, categories!provider_categories_category_id_fkey(slug, name_es, name_ru, name_en)),
+        id, slug, status, photo_path,
+        profiles!providers_profile_id_fkey!inner(display_name, telegram_user_id),
+        provider_categories!provider_categories_provider_id_fkey(category_id, price_from_ars, categories!provider_categories_category_id_fkey(slug)),
         provider_barrios!provider_barrios_provider_id_fkey(barrio_id, barrios!provider_barrios_barrio_id_fkey(slug, name_es, name_ru, name_en))
       `)
-      .eq('status', 'approved')
-      .not('profiles.telegram_user_id', 'is', null);
+      .eq('status', 'approved');
 
-    if (categorySlug) {
-      query = query.eq('provider_categories.categories.slug', categorySlug);
-    }
-    if (barrioSlug) {
-      query = query.eq('provider_barrios.barrios.slug', barrioSlug);
+    if (providerIds !== null) {
+      query = query.in('id', providerIds.length ? providerIds : ['00000000-0000-0000-0000-000000000000']);
     }
 
     const {data: providers, error: provError} = await query.order('created_at', {ascending: false}).limit(50);
     if (provError) throw provError;
 
+    // Enrich categories with canonical labels/icons.
+    const enrichedCategories = (categories ?? []).map((c) => {
+      const meta = isCategorySlug(c.slug) ? CATEGORY_LABELS[c.slug] : null;
+      return {...c, name_es: meta?.es ?? c.slug, name_ru: meta?.ru ?? c.slug, name_en: meta?.en ?? c.slug, icon: meta?.icon ?? '•'};
+    });
+
     return NextResponse.json({
-      categories: categories ?? [],
+      categories: enrichedCategories,
       barrios: barrios ?? [],
       providers: providers ?? []
     });

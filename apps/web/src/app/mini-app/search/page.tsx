@@ -6,13 +6,11 @@ import {Card, LocaleChip, MiniLocale, getTelegramInitData} from '../components';
 type Category = {id: string; slug: string; name_es: string; name_ru: string; name_en: string; icon?: string};
 type Barrio = {id: string; slug: string; name_es: string; name_ru: string; name_en: string};
 type Provider = {
-  id: string; slug: string; photo_path?: string | null; rating: number; reviews_count: number;
+  id: string; slug: string;
   profiles: {display_name?: string | null} | null;
-  provider_categories: Array<{price_from_ars?: number | null; categories: {slug: string; name_es: string; name_ru: string; name_en: string} | null}>;
+  provider_categories: Array<{price_from_ars?: number | null; categories: {slug: string} | null}>;
   provider_barrios: Array<{barrios: {slug: string; name_es: string; name_ru: string; name_en: string} | null}>;
 };
-
-const CAT_ICONS: Record<string, string> = {limpieza: '🧹', reparaciones: '🔧', mascotas: '🐾', mudanzas: '🚚', clases: '📚', mensajeria: '🛵', taxi: '🚕'};
 
 function SearchPageInner() {
   const router = useRouter();
@@ -64,7 +62,7 @@ function SearchPageInner() {
           <h2 style={{fontSize: 18, margin: 0}}>{t('Categorías', 'Категории', 'Categories')}</h2>
           {data.categories.map((c) => (
             <Card key={c.id} onClick={() => router.push(`/mini-app/search?category=${c.slug}`)}>
-              <strong>{CAT_ICONS[c.slug] ?? '•'} {catName(c)}</strong>
+              <strong>{c.icon ?? '•'} {catName(c)}</strong>
             </Card>
           ))}
         </section>
@@ -91,7 +89,7 @@ function SearchPageInner() {
                 <div style={{flex: 1}}>
                   <strong>{p.profiles?.display_name ?? 'Profesional'}</strong>
                   <div style={{fontSize: 13, color: 'var(--tg-theme-hint-color, #66706B)'}}>
-                    {p.provider_categories?.[0]?.categories ? catName(p.provider_categories[0].categories) : ''}
+                    {p.provider_categories?.[0]?.categories?.slug ?? ''}
                     {p.provider_categories?.[0]?.price_from_ars ? ` · desde $${p.provider_categories[0].price_from_ars}` : ''}
                   </div>
                 </div>
