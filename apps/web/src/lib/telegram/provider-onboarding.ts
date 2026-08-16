@@ -6,7 +6,7 @@ import {parseBarrioAlias} from '@/lib/barrios';
 
 export type OnboardingStep = 'category' | 'barrio' | 'description' | 'price' | 'photo' | 'confirm';
 
-const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 'submissionFailed' | 'invalidPrice' | 'approved' | 'rejected' | 'suspended' | 'reportReason' | 'reportDetails' | 'reportSubmitted' | 'reportRateLimited' | 'support' | 'supportSubmitted' | 'supportFailed' | 'supportRateLimited', string>> = {
+const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 'submissionFailed' | 'invalidPrice' | 'photoDocument' | 'approved' | 'rejected' | 'suspended' | 'reportReason' | 'reportDetails' | 'reportSubmitted' | 'reportRateLimited' | 'support' | 'supportSubmitted' | 'supportFailed' | 'supportRateLimited', string>> = {
   'es-AR': {
     welcome: '¡Bien! Vamos a crear tu perfil profesional en BuenServ.',
     category: '¿Qué servicio ofrecés? Respondé con una categoría.',
@@ -14,6 +14,7 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     description: 'Contanos brevemente sobre tu experiencia y el servicio que ofrecés.',
     price: 'Ingresá un precio orientativo en ARS, solo números. Ejemplo: 18000.',
     photo: 'Enviá una foto clara para tu perfil profesional.',
+    photoDocument: 'Eso llegó como archivo. Enviá la foto como imagen: abrí la galería/cámara y elegí "Enviar como foto", no "Adjuntar archivo".',
     confirm: 'Revisá los datos. Escribí CONFIRMAR para enviarlo a moderación.',
     submitted: '¡Listo! Tu perfil fue enviado a moderación. Te avisaremos por este chat.',
     submissionFailed: 'No pudimos enviar el perfil ahora. Esperá un momento y escribí CONFIRMAR otra vez.',
@@ -37,6 +38,7 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     description: 'Коротко расскажите об опыте и услуге, которую вы предлагаете.',
     price: 'Укажите ориентировочную цену в ARS, только цифры. Например: 18000.',
     photo: 'Отправьте чёткую фотографию для профессионального профиля.',
+    photoDocument: 'Это пришло как файл. Отправьте фото как изображение: откройте галерею/камеру и выберите «Отправить как фото», а не «Прикрепить файл».',
     confirm: 'Проверьте данные. Напишите ПОДТВЕРДИТЬ, чтобы отправить профиль на модерацию.',
     submitted: 'Готово! Профиль отправлен на модерацию. Мы напишем вам в этом чате.',
     submissionFailed: 'Сейчас не удалось отправить профиль. Подождите немного и снова напишите ПОДТВЕРДИТЬ.',
@@ -60,6 +62,7 @@ const copy: Record<BotLocale, Record<OnboardingStep | 'welcome' | 'submitted' | 
     description: 'Tell us briefly about your experience and the service you offer.',
     price: 'Enter an indicative price in ARS, numbers only. Example: 18000.',
     photo: 'Send a clear photo for your professional profile.',
+    photoDocument: 'That arrived as a file. Send the photo as an image: open the gallery/camera and choose "Send as photo", not "Attach file".',
     confirm: 'Review your details. Type CONFIRM to send your profile for moderation.',
     submitted: 'Done! Your profile was sent for moderation. We will message you here.',
     submissionFailed: 'We could not submit your profile right now. Please wait a moment and type CONFIRM again.',

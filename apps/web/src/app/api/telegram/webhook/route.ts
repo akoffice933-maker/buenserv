@@ -6,7 +6,7 @@ import {isConfirmation, onboardingText, parseArsPrice, parseBarrio, parseCategor
 import {performerProviderId, reportProviderId, startPayload, startsProviderOnboarding, startsSupport} from '@/lib/telegram/start-payload';
 
 type TelegramUser = {id: number; first_name?: string; last_name?: string; language_code?: string};
-type TelegramMessage = {message_id?: number; text?: string; photo?: Array<{file_id: string}>; chat?: {id: number}; from?: TelegramUser};
+type TelegramMessage = {message_id?: number; text?: string; photo?: Array<{file_id: string}>; document?: {file_id: string; file_name?: string}; chat?: {id: number}; from?: TelegramUser};
 type TelegramUpdate = {update_id: number; message?: TelegramMessage; callback_query?: {id: string; data?: string; from: TelegramUser; message?: TelegramMessage}};
 type Draft = {category_slug?: string; barrio_slug?: string; description?: string; price_from_ars?: number; telegram_photo_file_id?: string};
 
@@ -227,7 +227,7 @@ export async function POST(request: NextRequest) {
   else if (session.step === 'barrio') { const barrio = parseBarrio(message.text ?? ''); if (!barrio) reply = onboardingText(locale, 'barrio'); else { draft.barrio_slug = barrio; next = 'description'; reply = onboardingText(locale, 'description'); } }
   else if (session.step === 'description') { const description = message.text?.trim() ?? ''; if (description.length < 20 || description.length > 800) reply = onboardingText(locale, 'description'); else { draft.description = description; next = 'price'; reply = onboardingText(locale, 'price'); } }
   else if (session.step === 'price') { const price = parseArsPrice(message.text ?? ''); if (!price) reply = onboardingText(locale, 'invalidPrice'); else { draft.price_from_ars = price; next = 'photo'; reply = onboardingText(locale, 'photo'); } }
-  else if (session.step === 'photo') { const photo = message.photo?.at(-1)?.file_id; if (!photo) reply = onboardingText(locale, 'photo'); else { draft.telegram_photo_file_id = photo; next = 'confirm'; reply = onboardingText(locale, 'confirm'); } }
+  else if (session.step === 'photo') { const photo = message.photo?.at(-1)?.file_id; if (!photo) reply = message.document ? onboardingText(locale, 'photoDocument') : onboardingText(locale, 'photo'); else { draft.telegram_photo_file_id = photo; next = 'confirm'; reply = onboardingText(locale, 'confirm'); } }
   else if (session.step === 'confirm') { if (!isConfirmation(message.text ?? '')) reply = onboardingText(locale, 'confirm'); else { try { await submitProvider(supabase, profile.id, user.id, displayName, draft); await supabase.from('provider_onboarding_sessions').delete().eq('profile_id', profile.id); reply = onboardingText(locale, 'submitted'); } catch { try { await sendTelegramMessage(env, chatId, onboardingText(locale, 'submissionFailed')); } catch {} return NextResponse.json({error: 'Submission failed'}, {status: 500}); } } }
   if (next) {
     await supabase.from('provider_onboarding_sessions').update({step: next, draft, updated_at: new Date().toISOString()}).eq('profile_id', profile.id);
