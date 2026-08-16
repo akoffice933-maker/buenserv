@@ -242,6 +242,27 @@ Checklist before performing E2E delivery to real users
 - Smoke scripts use explicit `LEAD_SMOKE_*` env vars and do not auto-select providers.
 - Operator has read-only verifier ready and knows how to run it.
 
+Notification delivery latency policy
+------------------------------------
+Outbox is the canonical delivery path (reliable, idempotent, retry-safe). Delivery
+latency is determined ONLY by the worker trigger frequency, not by the outbox model.
+
+| Stage | Trigger | Expected latency |
+|-------|---------|------------------|
+| Internal staging smoke | GitHub Actions every 5 min | 5–15 min (best-effort) |
+| Closed pilot (real providers) | 1-minute trigger REQUIRED | < 1 min |
+| Public launch | dedicated monitored worker | 15–30 sec |
+
+Rule: do NOT onboard real providers into a closed pilot until a 1-minute trigger is
+configured. 5–15 min delivery reads as a slow/no-response marketplace.
+
+Owner decision required before closed pilot (pick one):
+- A. Vercel Pro → native cron every minute → current protected route unchanged.
+- B. Supabase scheduled Edge Function / pg_cron → every minute → separate secrets/monitoring.
+
+Do NOT revert to direct Telegram sendMessage inside the business transaction; the
+transactional outbox stays, only the trigger frequency/mechanism changes.
+
 Appendix: Quick commands reference (no secrets)
 ---------------------------------------------
 - Run read-only verifier:
