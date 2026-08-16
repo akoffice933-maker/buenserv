@@ -1,21 +1,37 @@
 -- P0: notify the admin bot when a provider submits a profile for moderation.
 -- The provider photo is stored as telegram_photo_file_id in onboarding_payload;
 -- the admin alert carries the provider id so the admin panel can render the photo.
+-- Rebuilds the two-tier constraint from 040, adding admin_new_provider to the
+-- operational (lead_id IS NULL) group and keeping customer_support_reply.
 
 alter table public.notification_outbox drop constraint if exists notification_outbox_notification_type_check;
 alter table public.notification_outbox
   add constraint notification_outbox_notification_type_check
-  check (notification_type in (
-    'provider_lead_notification',
-    'customer_provider_reply',
-    'provider_customer_reply',
-    'customer_provider_completed',
-    'provider_customer_confirmed',
-    'admin_new_support_request',
-    'admin_new_report',
-    'admin_new_provider',
-    'admin_outbox_failed'
-  ));
+  check (
+    (
+      notification_type in (
+        'provider_lead_notification',
+        'customer_provider_reply',
+        'provider_customer_reply',
+        'customer_provider_completed',
+        'provider_customer_confirmed'
+      )
+      and lead_id is not null
+      and lead_event_id is not null
+    )
+    or
+    (
+      notification_type in (
+        'admin_new_support_request',
+        'admin_new_report',
+        'admin_new_provider',
+        'admin_outbox_failed',
+        'customer_support_reply'
+      )
+      and lead_id is null
+      and lead_event_id is null
+    )
+  );
 
 create or replace function public.enqueue_admin_alert(
   p_notification_type text,
