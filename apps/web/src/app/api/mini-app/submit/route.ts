@@ -14,8 +14,10 @@ export async function POST(request: NextRequest) {
     if (!initData || !category || !barrio || !description || !price) return NextResponse.json({error: 'Missing required fields'}, {status: 400});
     if (description.length < 20 || description.length > 800) return NextResponse.json({error: 'Description must be 20-800 characters'}, {status: 400});
     const priceNum = Number(price); if (!Number.isFinite(priceNum) || priceNum <= 0 || priceNum > 100_000_000) return NextResponse.json({error: 'Invalid price'}, {status: 400});
-    // This mutates onboarding state, so use a short initData freshness window.
-    const user = verifyTelegramWebAppInitData(initData, env.TELEGRAM_BOT_TOKEN, 600);
+    // Onboarding is a long multi-step form; the initData captured when the Mini App
+    // opened can exceed the 10-minute write window by the time the user submits.
+    // Use a 1-hour freshness window for this state-creating route.
+    const user = verifyTelegramWebAppInitData(initData, env.TELEGRAM_BOT_TOKEN, 3600);
     const locale: BotLocale = user.language_code?.startsWith('ru') ? 'ru' : user.language_code?.startsWith('en') ? 'en' : 'es-AR';
     const displayName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'BuenServ user';
     const {data: profile, error: profileError} = await supabase.from('profiles').upsert({telegram_user_id: user.id, display_name: displayName, locale}, {onConflict: 'telegram_user_id'}).select('id').single();
