@@ -10,7 +10,7 @@ import { formatPrice } from "@/lib/format";
 export interface ProviderData {
   id: string;
   displayName: string;
-  bio?: string;
+  bio?: string | null;
   avatarUrl?: string | null;
   status: string;
   isVerified?: boolean;
@@ -87,6 +87,11 @@ export function ProviderCard({ provider }: ProviderCardProps) {
                 ({provider.reviewsCount})
               </span>
             </div>
+          )}
+
+          {/* Bio / description of activity */}
+          {provider.bio && (
+            <p className="mt-1.5 text-[13px] text-[#66706B] leading-snug line-clamp-2">{provider.bio}</p>
           )}
 
           {/* Category & Barrio summary */}

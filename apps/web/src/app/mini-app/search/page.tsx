@@ -11,7 +11,7 @@ import {Search, SlidersHorizontal, X, MapPin} from 'lucide-react';
 import {CATEGORY_LABELS, CategorySlug} from '@/lib/categories';
 
 type RawProvider = {
-  id: string; slug: string; status: string; photo_path?: string | null;
+  id: string; slug: string; status: string; bio?: string | null; photo_path?: string | null;
   profiles: {display_name?: string | null} | {display_name?: string | null}[] | null;
   provider_categories: Array<{category_id: string; price_from_ars?: number | null; categories: {slug: string} | {slug: string}[] | null}>;
   provider_barrios: Array<{barrio_id: string; barrios: {slug: string; name_es: string; name_ru: string; name_en: string} | {slug: string; name_es: string; name_ru: string; name_en: string}[] | null}>;
@@ -100,6 +100,7 @@ function SearchContent() {
     return {
       id: p.id,
       displayName: profile?.display_name ?? 'Profesional',
+      bio: p.bio ?? null,
       avatarUrl: p.photo_path ?? null,
       status: p.status,
       isVerified: p.status === 'approved',
