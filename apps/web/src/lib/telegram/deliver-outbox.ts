@@ -28,6 +28,7 @@ const NOTIFICATION_COPY: Record<string, string> = {
 const ADMIN_NOTIFICATION_COPY: Record<string, string> = {
   admin_new_support_request: '💬 Nuevo mensaje de soporte. Usá /support para verlo.',
   admin_new_report: '🚩 Nueva denuncia. Usá /reports para verla.',
+  admin_new_provider: '🆕 Nuevo prestador en moderación. Usá /providers para revisarlo.',
   admin_outbox_failed: '📨 Outbox permanently failed. Usá /alerts para ver el detalle.'
 };
 
