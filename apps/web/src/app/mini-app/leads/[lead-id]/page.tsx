@@ -1,6 +1,6 @@
 'use client';
 
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {useParams, useRouter} from 'next/navigation';
 import {useMiniApp} from '@/context/MiniAppContext';
 import {MiniAppShell} from '@/components/mini-app/MiniAppShell';
@@ -204,6 +204,11 @@ export default function LeadDetailPage() {
       success: tr('ld_status_success'), no_response: tr('ld_status_no_response'), cancelled: tr('ld_status_cancelled')
     } as Record<string, string>
   };
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const scrollToBottom = useCallback(() => {
+    bottomRef.current?.scrollIntoView({behavior: 'smooth', block: 'end'});
+  }, []);
+
   const catMeta = CATEGORY_LABELS[(lead.category ?? '') as CategorySlug];
   const catName = catMeta ? (lang === 'ru' ? catMeta.ru : lang === 'en' ? catMeta.en : catMeta.es) : (lead.category ?? 'Servicio');
   const barrioName = localizedBarrio(lead.barrio, lang);
@@ -219,18 +224,25 @@ export default function LeadDetailPage() {
     (lead.isCustomer && lastEvent === 'provider_replied');
 
   const eventLabel = (event: {event_type: string; actor_type: string}) => {
-    if (event.actor_type === 'provider') {
-      if (event.event_type === 'provider_opened') return tr('ld_action_opened');
-      if (event.event_type === 'provider_replied') return tr('ld_action_replied');
-      return event.event_type;
-    }
-    if (event.actor_type === 'customer') {
-      if (event.event_type === 'customer_replied') return tr('ld_action_customer_replied');
-      if (event.event_type === 'cancelled') return tr('ld_action_cancelled');
-      return event.event_type;
-    }
+    if (event.event_type === 'provider_opened') return tr('ld_event_opened');
+    if (event.event_type === 'provider_replied') return tr('ld_event_replied');
+    if (event.event_type === 'customer_replied') return tr('ld_action_customer_replied');
+    if (event.event_type === 'cancelled') return tr('ld_event_cancelled');
+    if (event.event_type === 'provider_service_completed') return tr('ld_event_completed');
+    if (event.event_type === 'customer_completion_confirmed') return tr('ld_event_confirmed');
     return event.event_type;
   };
+
+  // Merged chronological timeline: system events + messages interleaved by time.
+  const timeline: Array<{key: string; createdAt: string; kind: 'event' | 'message'; event?: (typeof lead.events)[number]; message?: (typeof lead.messages)[number]}> = [
+    ...lead.events.map((e) => ({key: `e-${e.created_at}-${e.event_type}`, createdAt: e.created_at, kind: 'event' as const, event: e})),
+    ...lead.messages.map((m) => ({key: `m-${m.id}`, createdAt: m.createdAt, kind: 'message' as const, message: m}))
+  ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+  // Auto-scroll to the latest message after a send / new data.
+  useEffect(() => {
+    scrollToBottom();
+  }, [lead?.messages.length, scrollToBottom]);
 
   // Chat peer: the other party in the conversation.
   const peerName = lead.isProvider ? tr('ld_peer_customer') : (providerName ?? tr('ld_peer_customer'));
@@ -265,24 +277,30 @@ export default function LeadDetailPage() {
         </div>
 
         {/* Thread: system chips + message bubbles */}
-        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5">
-          {lead.events.map((event, index) => (
-            <div key={`e-${index}`} className="self-center text-[12px] font-bold text-[#08735A] bg-[#EAF7F1] px-3 py-1.5 rounded-full text-center">
-              {eventLabel(event)}
-            </div>
-          ))}
-
-          {lead.messages.length > 0 ? lead.messages.map((message) => {
-            const isMine = (lead.isCustomer && message.senderRole === 'customer') || (lead.isProvider && message.senderRole === 'provider');
-            return (
-              <div key={message.id} className={`flex flex-col max-w-[82%] ${isMine ? 'self-end items-end' : 'self-start items-start'}`}>
-                <div className={`px-3.5 py-2.5 rounded-[18px] text-[15px] leading-snug whitespace-pre-wrap ${isMine ? 'bg-[#0FA37F] text-white rounded-br-[4px]' : 'bg-white border border-[#DCE4DE] rounded-bl-[4px] text-[#1A1F1D]'}`}>
-                  {message.body}
+        <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2.5">
+          {timeline.length > 0 ? timeline.map((item) => {
+            if (item.kind === 'event' && item.event) {
+              return (
+                <div key={item.key} className="self-center text-[12px] font-bold text-[#08735A] bg-[#EAF7F1] px-3 py-1.5 rounded-full text-center">
+                  {eventLabel(item.event)}
                 </div>
-                <time dateTime={message.createdAt} className="text-[11px] text-[#66706B] mt-1 px-1">{formatTime(message.createdAt, locale)}</time>
-              </div>
-            );
+              );
+            }
+            if (item.kind === 'message' && item.message) {
+              const message = item.message;
+              const isMine = (lead.isCustomer && message.senderRole === 'customer') || (lead.isProvider && message.senderRole === 'provider');
+              return (
+                <div key={item.key} className={`flex flex-col max-w-[82%] ${isMine ? 'self-end items-end' : 'self-start items-start'}`}>
+                  <div className={`px-3.5 py-2.5 rounded-[18px] text-[15px] leading-snug whitespace-pre-wrap ${isMine ? 'bg-[#0FA37F] text-white rounded-br-[4px]' : 'bg-white border border-[#DCE4DE] rounded-bl-[4px] text-[#1A1F1D]'}`}>
+                    {message.body}
+                  </div>
+                  <time dateTime={message.createdAt} className="text-[11px] text-[#66706B] mt-1 px-1">{formatTime(message.createdAt, locale)}</time>
+                </div>
+              );
+            }
+            return null;
           }) : <p className="text-[14px] text-[#66706B] text-center m-0">{t.noMessages}</p>}
+          <div ref={bottomRef} />
         </div>
 
         {/* Actions */}
