@@ -6,7 +6,7 @@ import {useMiniApp} from '@/context/MiniAppContext';
 import {MiniAppShell} from '@/components/mini-app/MiniAppShell';
 import {PrimaryButton, SecondaryButton} from '@/components/mini-app/Buttons';
 import {LoadingState, ErrorState} from '@/components/mini-app/FeedbackStates';
-import {formatDateTime} from '@/lib/format';
+import {formatDateTime, formatTime} from '@/lib/format';
 import {getTelegramInitData} from '@/lib/telegram-client';
 import {CATEGORY_LABELS, CategorySlug} from '@/lib/categories';
 
@@ -232,92 +232,101 @@ export default function LeadDetailPage() {
     return event.event_type;
   };
 
+  // Chat peer: the other party in the conversation.
+  const peerName = lead.isProvider ? tr('ld_peer_customer') : (providerName ?? tr('ld_peer_customer'));
+  const peerRole = lead.isProvider ? tr('ld_role_customer') : tr('ld_role_provider');
+  const peerInitials = peerName.slice(0, 2).toUpperCase();
+  // Status pill styling by lead status.
+  const pillClass = lead.status === 'success'
+    ? 'bg-[#e8f8ee] text-[#1a7a4c]'
+    : (lead.status === 'cancelled' || lead.status === 'no_response')
+      ? 'bg-[#f3f1ea] text-[#7a6a4a]'
+      : 'bg-[#EAF7F1] text-[#0FA37F]';
+  const lockedText = ['success', 'cancelled', 'no_response'].includes(lead.status)
+    ? tr('ld_locked_closed')
+    : tr('ld_locked_waiting');
+
   return (
-    <MiniAppShell title={`${catName} · ${barrioName}`} showBack backHref="/mini-app" showBottomNav={false}>
-      <div className="space-y-5 pb-6">
-        <div className="bg-white rounded-[20px] p-5 border border-[#DCE4DE]/80 bs-card-shadow space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[15px] font-extrabold text-[#1A1F1D]">{catName} · {barrioName}</span>
-            <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#EAF7F1] text-[#0FA37F] text-[12px] font-bold">{leadStatusText}</span>
+    <MiniAppShell
+      title={`${catName} · ${barrioName}`}
+      showBack
+      backHref="/mini-app"
+      showBottomNav={false}
+      rightAction={{label: leadStatusText, onClick: () => {}, icon: <span className={`inline-flex items-center px-3 py-1 rounded-full text-[12px] font-bold ${pillClass}`}>{leadStatusText}</span>}}
+    >
+      <div className="flex flex-col h-full">
+        {/* Context card */}
+        <div className="mx-3 mt-3 p-3 bg-white border border-[#DCE4DE] rounded-[14px] flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#e6ad7b] to-[#513a2f] text-white font-bold text-sm flex items-center justify-center shrink-0">{peerInitials}</div>
+          <div className="min-w-0">
+            <strong className="block text-[14px] text-[#1A1F1D] truncate">{peerName}</strong>
+            <span className="text-[12px] text-[#66706B]">📍 {barrioName} · {peerRole}</span>
           </div>
-          {lead.provider && (
-            <div className="pt-3 border-t border-[#DCE4DE]/60 space-y-1">
-              <p className="text-[13px] text-[#66706B] font-medium m-0">{t.providerProfile}</p>
-              <p className="text-[15px] font-bold text-[#1A1F1D] m-0">{providerName}</p>
-              {providerStatusText && <p className="text-[13px] text-[#66706B] m-0">{providerStatusText}</p>}
-            </div>
-          )}
         </div>
 
-        <div className="bg-white rounded-[20px] p-5 border border-[#DCE4DE]/80 bs-card-shadow space-y-3">
-          <h2 className="text-[16px] font-bold text-[#1A1F1D] m-0">Historia</h2>
-          {lead.events.length > 0 ? (
-            <div className="space-y-2">
-              {lead.events.map((event, index) => (
-                <div key={index} className="p-3 bg-[#FAF9F6] rounded-[12px] border border-[#DCE4DE]/60">
-                  <div className="flex justify-between gap-3 text-[13px]">
-                    <span className="text-[#1A1F1D] font-medium">{eventLabel(event)}</span>
-                    <span className="text-[#66706B] shrink-0">{formatDateTime(event.created_at, locale)}</span>
-                  </div>
+        {/* Thread: system chips + message bubbles */}
+        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5">
+          {lead.events.map((event, index) => (
+            <div key={`e-${index}`} className="self-center text-[12px] font-bold text-[#08735A] bg-[#EAF7F1] px-3 py-1.5 rounded-full text-center">
+              {eventLabel(event)}
+            </div>
+          ))}
+
+          {lead.messages.length > 0 ? lead.messages.map((message) => {
+            const isMine = (lead.isCustomer && message.senderRole === 'customer') || (lead.isProvider && message.senderRole === 'provider');
+            return (
+              <div key={message.id} className={`flex flex-col max-w-[82%] ${isMine ? 'self-end items-end' : 'self-start items-start'}`}>
+                <div className={`px-3.5 py-2.5 rounded-[18px] text-[15px] leading-snug whitespace-pre-wrap ${isMine ? 'bg-[#0FA37F] text-white rounded-br-[4px]' : 'bg-white border border-[#DCE4DE] rounded-bl-[4px] text-[#1A1F1D]'}`}>
+                  {message.body}
                 </div>
-              ))}
-            </div>
-          ) : <p className="text-[14px] text-[#66706B] text-center m-0">Sin historial</p>}
+                <time dateTime={message.createdAt} className="text-[11px] text-[#66706B] mt-1 px-1">{formatTime(message.createdAt, locale)}</time>
+              </div>
+            );
+          }) : <p className="text-[14px] text-[#66706B] text-center m-0">{t.noMessages}</p>}
         </div>
 
-        <div className="bg-white rounded-[20px] p-5 border border-[#DCE4DE]/80 bs-card-shadow space-y-3">
-          <h2 className="text-[16px] font-bold text-[#1A1F1D] m-0">{t.messagesTitle}</h2>
-          <div className="space-y-2">
-            {lead.messages.length > 0 ? lead.messages.map((message) => {
-              const isMine = (lead.isCustomer && message.senderRole === 'customer') || (lead.isProvider && message.senderRole === 'provider');
-              return (
-                <article key={message.id} className={`p-3 rounded-[14px] border ${isMine ? 'bg-[#EAF7F1] border-[#0FA37F]/20' : 'bg-[#FAF9F6] border-[#DCE4DE]/60'}`}>
-                  <div className="flex justify-between gap-3 text-[13px] text-[#66706B]">
-                    <strong className="text-[#1A1F1D]">{isMine ? t.you : (message.senderDisplayName ?? message.senderRole)}</strong>
-                    <time dateTime={message.createdAt} className="shrink-0">{formatDateTime(message.createdAt, locale)}</time>
-                  </div>
-                  <p className="m-0 mt-1.5 text-[15px] text-[#1A1F1D] whitespace-pre-wrap">{message.body}</p>
-                </article>
-              );
-            }) : <p className="text-[14px] text-[#66706B] text-center m-0">{t.noMessages}</p>}
+        {/* Actions */}
+        {lead.allowedActions.length > 0 && (
+          <div className="px-3 pb-2 flex gap-2">
+            {lead.allowedActions.map((action, index) => {
+              const label =
+                action === 'provider_opened' ? t.actionProviderOpened :
+                action === 'provider_replied' ? t.actionProviderReplied :
+                action === 'customer_replied' ? t.actionCustomerReplied :
+                action === 'provider_service_completed' ? t.actionProviderServiceCompleted :
+                action === 'customer_completion_confirmed' ? t.actionCustomerCompletionConfirmed :
+                action === 'cancelled' ? t.actionCancelled :
+                action;
+              const isCancel = action === 'cancelled';
+              return isCancel
+                ? <SecondaryButton key={index} onClick={() => submitAction(action as any)}>{label}</SecondaryButton>
+                : <PrimaryButton key={index} onClick={() => submitAction(action as any)}>{label}</PrimaryButton>;
+            })}
           </div>
+        )}
 
-          {canCompose && (
-            <div className="space-y-2 pt-1">
+        {/* Composer / Locked */}
+        <div className="px-3 pb-4 pt-2 border-t border-[#DCE4DE] bg-white">
+          {canCompose ? (
+            <div className="flex items-end gap-2 bg-[#FAF9F6] border border-[#DCE4DE] rounded-[20px] p-1.5 pl-3">
               <textarea
                 value={messageBody}
                 onChange={(event) => setMessageBody(event.target.value)}
                 placeholder={t.messagePlaceholder}
-                rows={4}
-                className="w-full min-h-[100px] px-4 py-3 rounded-[14px] bg-[#FAF9F6] border border-[#DCE4DE] text-[15px] text-[#1A1F1D] placeholder-[#66706B] focus:outline-hidden focus:border-[#0FA37F] focus:ring-2 focus:ring-[#0FA37F]/20 transition-all resize-y"
+                rows={1}
+                className="flex-1 bg-transparent resize-none outline-none text-[15px] leading-snug text-[#1A1F1D] placeholder-[#66706B] min-h-[40px] max-h-[100px] py-2"
               />
-              <PrimaryButton onClick={submitMessage} loading={sendingMessage}>{sendingMessage ? t.sendingMessage : t.sendMessage}</PrimaryButton>
+              <button type="button" onClick={submitMessage} disabled={sendingMessage} aria-label="Send"
+                className="w-11 h-11 rounded-[14px] bg-[#0FA37F] text-white text-lg flex items-center justify-center shrink-0 disabled:opacity-50">
+                {sendingMessage ? '…' : '➤'}
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-2 p-3.5 rounded-[16px] bg-[#f1f1ed] text-[#66706B] text-[13px] font-semibold text-center">
+              {lockedText}
             </div>
           )}
         </div>
-
-        {lead.allowedActions.length > 0 && (
-          <div className="space-y-3">
-            <h2 className="text-[16px] font-bold text-[#1A1F1D] m-0">Acciones disponibles</h2>
-            <div className="space-y-2">
-              {lead.allowedActions.map((action, index) => {
-                const label =
-                  action === 'provider_opened' ? t.actionProviderOpened :
-                  action === 'provider_replied' ? t.actionProviderReplied :
-                  action === 'customer_replied' ? t.actionCustomerReplied :
-                  action === 'provider_service_completed' ? t.actionProviderServiceCompleted :
-                  action === 'customer_completion_confirmed' ? t.actionCustomerCompletionConfirmed :
-                  action === 'cancelled' ? t.actionCancelled :
-                  action;
-                return (
-                  <PrimaryButton key={index} onClick={() => submitAction(action as any)}>{label}</PrimaryButton>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <SecondaryButton onClick={() => router.push('/mini-app')}>{tr('ct_back')}</SecondaryButton>
       </div>
     </MiniAppShell>
   );

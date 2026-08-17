@@ -187,6 +187,17 @@ export const translations = {
     ld_action_completed: "Marcar como realizado",
     ld_action_confirmed: "Confirmar finalización",
     ld_action_cancelled: "Cancelar",
+    // Chat redesign
+    ld_locked_waiting: "🔒 Esperando respuesta del prestador",
+    ld_locked_closed: "🔒 Esta solicitud está cerrada",
+    ld_peer_customer: "Cliente",
+    ld_role_provider: "Prestador",
+    ld_role_customer: "Cliente",
+    ld_event_opened: "abrió la solicitud",
+    ld_event_replied: "respondió",
+    ld_event_cancelled: "Solicitud cancelada",
+    ld_event_completed: "Servicio marcado como completado",
+    ld_event_confirmed: "Cliente confirmó · éxito",
   },
   ru: {
     app_name: "BuenServ",
@@ -368,6 +379,17 @@ export const translations = {
     ld_action_completed: "Отметить выполненным",
     ld_action_confirmed: "Подтвердить завершение",
     ld_action_cancelled: "Отменить",
+    // Chat redesign
+    ld_locked_waiting: "🔒 Ожидаем ответ исполнителя",
+    ld_locked_closed: "🔒 Эта заявка закрыта",
+    ld_peer_customer: "Клиент",
+    ld_role_provider: "Исполнитель",
+    ld_role_customer: "Клиент",
+    ld_event_opened: "открыл(а) заявку",
+    ld_event_replied: "ответил(а)",
+    ld_event_cancelled: "Заявка отменена",
+    ld_event_completed: "Услуга отмечена как выполненная",
+    ld_event_confirmed: "Клиент подтвердил · success",
   },
   en: {
     app_name: "BuenServ",
@@ -549,6 +571,17 @@ export const translations = {
     ld_action_completed: "Mark as done",
     ld_action_confirmed: "Confirm completion",
     ld_action_cancelled: "Cancel",
+    // Chat redesign
+    ld_locked_waiting: "🔒 Waiting for the provider’s reply",
+    ld_locked_closed: "🔒 This request is closed",
+    ld_peer_customer: "Customer",
+    ld_role_provider: "Provider",
+    ld_role_customer: "Customer",
+    ld_event_opened: "opened the request",
+    ld_event_replied: "replied",
+    ld_event_cancelled: "Request cancelled",
+    ld_event_completed: "Service marked as completed",
+    ld_event_confirmed: "Customer confirmed · success",
   },
 };
 

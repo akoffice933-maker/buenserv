@@ -25,3 +25,10 @@ export function formatDateTime(date: string | Date, locale: FormatLocale): strin
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleString(toIntlLocale(locale));
 }
+
+/** Format a short time (HH:mm) for chat bubbles. */
+export function formatTime(date: string | Date, locale: FormatLocale): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString(toIntlLocale(locale), {hour: '2-digit', minute: '2-digit'});
+}
