@@ -173,6 +173,16 @@ export default function LeadDetailPage() {
     } catch { /* ignore */ }
   }, [leadId, fetchLeadData]);
 
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const scrollToBottom = useCallback(() => {
+    bottomRef.current?.scrollIntoView({behavior: 'smooth', block: 'end'});
+  }, []);
+
+  // Auto-scroll to the latest message after a send / new data.
+  useEffect(() => {
+    scrollToBottom();
+  }, [lead?.messages.length, scrollToBottom]);
+
   if (error) {
     return (
       <MiniAppShell showBack backHref="/mini-app" showBottomNav={false}>
@@ -204,11 +214,6 @@ export default function LeadDetailPage() {
       success: tr('ld_status_success'), no_response: tr('ld_status_no_response'), cancelled: tr('ld_status_cancelled')
     } as Record<string, string>
   };
-  const bottomRef = useRef<HTMLDivElement | null>(null);
-  const scrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({behavior: 'smooth', block: 'end'});
-  }, []);
-
   const catMeta = CATEGORY_LABELS[(lead.category ?? '') as CategorySlug];
   const catName = catMeta ? (lang === 'ru' ? catMeta.ru : lang === 'en' ? catMeta.en : catMeta.es) : (lead.category ?? 'Servicio');
   const barrioName = localizedBarrio(lead.barrio, lang);
@@ -238,11 +243,6 @@ export default function LeadDetailPage() {
     ...lead.events.map((e) => ({key: `e-${e.created_at}-${e.event_type}`, createdAt: e.created_at, kind: 'event' as const, event: e})),
     ...lead.messages.map((m) => ({key: `m-${m.id}`, createdAt: m.createdAt, kind: 'message' as const, message: m}))
   ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
-  // Auto-scroll to the latest message after a send / new data.
-  useEffect(() => {
-    scrollToBottom();
-  }, [lead?.messages.length, scrollToBottom]);
 
   // Chat peer: the other party in the conversation.
   const peerName = lead.isProvider ? tr('ld_peer_customer') : (providerName ?? tr('ld_peer_customer'));
