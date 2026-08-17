@@ -266,7 +266,7 @@ export default function LeadDetailPage() {
       showBottomNav={false}
       rightAction={{label: leadStatusText, onClick: () => {}, icon: <span className={`inline-flex items-center px-3 py-1 rounded-full text-[12px] font-bold ${pillClass}`}>{leadStatusText}</span>}}
     >
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col flex-1 -mx-4 -mb-12">
         {/* Context card */}
         <div className="mx-3 mt-3 p-3 bg-white border border-[#DCE4DE] rounded-[14px] flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#e6ad7b] to-[#513a2f] text-white font-bold text-sm flex items-center justify-center shrink-0">{peerInitials}</div>
