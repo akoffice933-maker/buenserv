@@ -137,6 +137,39 @@ export function StatusBadge({ status, size = "md" }: StatusBadgeProps) {
       border = "border-red-200";
       Icon = XCircle;
       break;
+
+    // Lead lifecycle statuses (from leads.status)
+    case "contacted":
+      label = t("ld_status_waiting");
+      bg = "bg-[#F8F1E4]";
+      text = "text-[#8A6A2F]";
+      border = "border-amber-200";
+      Icon = Clock;
+      break;
+
+    case "provider_replied":
+      label = t("ld_status_replied");
+      bg = "bg-[#EAF7F1]";
+      text = "text-[#08735A]";
+      border = "border-[#0FA37F]/30";
+      Icon = Sparkles;
+      break;
+
+    case "success":
+      label = t("ld_status_success");
+      bg = "bg-[#E8F8EE]";
+      text = "text-[#1a7a4c]";
+      border = "border-emerald-200";
+      Icon = CheckCircle2;
+      break;
+
+    case "no_response":
+      label = t("ld_status_no_response");
+      bg = "bg-[#F8F1E4]";
+      text = "text-[#8A6A2F]";
+      border = "border-amber-200";
+      Icon = Clock;
+      break;
   }
 
   const isSmall = size === "sm";

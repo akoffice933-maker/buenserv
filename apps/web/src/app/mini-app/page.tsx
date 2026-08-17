@@ -15,7 +15,8 @@ type Lead = {
   id: string; status: string; created_at: string; updated_at: string;
   categories?: {slug?: string} | null;
   barrios?: {name_es?: string; name_ru?: string; name_en?: string} | null;
-  providers?: {slug?: string} | null;
+  providers?: {slug?: string; profiles?: {display_name?: string} | {display_name?: string}[] | null} | null;
+  lead_messages?: Array<{body?: string}> | null;
 };
 
 type DashboardData = {
@@ -52,15 +53,20 @@ export default function MiniAppHomePage() {
   const userName = data.profile.firstName || 'Che';
   const isProvider = !!data.provider;
 
-  const toLeadCard = (lead: Lead, providerName?: string): LeadCardData => ({
-    id: lead.id as unknown as number,
-    categorySlug: lead.categories?.slug ?? '',
-    barrioName: locale === 'ru' ? (lead.barrios?.name_ru ?? '') : locale === 'en' ? (lead.barrios?.name_en ?? '') : (lead.barrios?.name_es ?? ''),
-    status: lead.status,
-    createdAt: lead.created_at,
-    updatedAt: lead.updated_at,
-    providerDisplayName: providerName
-  });
+  const toLeadCard = (lead: Lead, providerName?: string): LeadCardData => {
+    const providerProfile = Array.isArray(lead.providers?.profiles) ? lead.providers?.profiles[0] : lead.providers?.profiles;
+    const firstMessage = Array.isArray(lead.lead_messages) ? lead.lead_messages[0]?.body : null;
+    return {
+      id: lead.id as unknown as number,
+      categorySlug: lead.categories?.slug ?? '',
+      barrioName: locale === 'ru' ? (lead.barrios?.name_ru ?? '') : locale === 'en' ? (lead.barrios?.name_en ?? '') : (lead.barrios?.name_es ?? ''),
+      status: lead.status,
+      createdAt: lead.created_at,
+      updatedAt: lead.updated_at,
+      providerDisplayName: providerName ?? providerProfile?.display_name,
+      initialDescription: firstMessage ?? null
+    };
+  };
 
   return (
     <MiniAppShell>

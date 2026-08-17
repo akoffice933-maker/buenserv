@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     const customerLeads = await supabase
       .from('leads')
-      .select('id, status, created_at, updated_at, categories!leads_category_id_fkey(slug), barrios!leads_barrio_id_fkey(name_es, name_ru, name_en), providers!leads_provider_id_fkey(slug)')
+      .select('id, status, created_at, updated_at, categories!leads_category_id_fkey(slug), barrios!leads_barrio_id_fkey(name_es, name_ru, name_en), providers!leads_provider_id_fkey(slug, profiles!providers_profile_id_fkey(display_name)), lead_messages!lead_messages_lead_id_fkey(body)')
       .eq('customer_profile_id', identity.profileId)
       .order('updated_at', {ascending: false})
       .limit(20);
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     const providerLeads = provider ? await supabase
       .from('leads')
-      .select('id, status, created_at, updated_at, categories!leads_category_id_fkey(slug), barrios!leads_barrio_id_fkey(name_es, name_ru, name_en)')
+      .select('id, status, created_at, updated_at, categories!leads_category_id_fkey(slug), barrios!leads_barrio_id_fkey(name_es, name_ru, name_en), lead_messages!lead_messages_lead_id_fkey(body)')
       .eq('provider_id', provider.id)
       .order('updated_at', {ascending: false})
       .limit(20) : {data: [], error: null};

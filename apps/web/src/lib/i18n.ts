@@ -198,6 +198,12 @@ export const translations = {
     ld_event_cancelled: "Solicitud cancelada",
     ld_event_completed: "Servicio marcado como completado",
     ld_event_confirmed: "Cliente confirmó · éxito",
+    // Lead cards
+    ld_cta_chat: "Abrir chat",
+    ld_cta_reply: "Responder",
+    ld_cta_view: "Ver",
+    ld_new_request: "Nueva solicitud",
+    ld_status_waiting: "Esperando respuesta",
   },
   ru: {
     app_name: "BuenServ",
@@ -390,6 +396,12 @@ export const translations = {
     ld_event_cancelled: "Заявка отменена",
     ld_event_completed: "Услуга отмечена как выполненная",
     ld_event_confirmed: "Клиент подтвердил · success",
+    // Lead cards
+    ld_cta_chat: "Открыть чат",
+    ld_cta_reply: "Ответить",
+    ld_cta_view: "Смотреть",
+    ld_new_request: "Новая заявка",
+    ld_status_waiting: "Ожидает ответа",
   },
   en: {
     app_name: "BuenServ",
@@ -582,6 +594,12 @@ export const translations = {
     ld_event_cancelled: "Request cancelled",
     ld_event_completed: "Service marked as completed",
     ld_event_confirmed: "Customer confirmed · success",
+    // Lead cards
+    ld_cta_chat: "Open chat",
+    ld_cta_reply: "Reply",
+    ld_cta_view: "View",
+    ld_new_request: "New request",
+    ld_status_waiting: "Waiting for reply",
   },
 };
 
