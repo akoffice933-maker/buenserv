@@ -204,6 +204,8 @@ export const translations = {
     ld_cta_view: "Ver",
     ld_new_request: "Nueva solicitud",
     ld_status_waiting: "Esperando respuesta",
+    // Provider profile
+    btn_write_provider: "Escribir al prestador",
   },
   ru: {
     app_name: "BuenServ",
@@ -402,6 +404,8 @@ export const translations = {
     ld_cta_view: "Смотреть",
     ld_new_request: "Новая заявка",
     ld_status_waiting: "Ожидает ответа",
+    // Provider profile
+    btn_write_provider: "Написать мастеру",
   },
   en: {
     app_name: "BuenServ",
@@ -600,6 +604,8 @@ export const translations = {
     ld_cta_view: "View",
     ld_new_request: "New request",
     ld_status_waiting: "Waiting for reply",
+    // Provider profile
+    btn_write_provider: "Message provider",
   },
 };
 

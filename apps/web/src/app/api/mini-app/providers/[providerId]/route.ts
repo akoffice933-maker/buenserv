@@ -17,7 +17,7 @@ export async function GET(request: NextRequest, context: {params: Promise<{provi
     const {data: provider, error} = await supabase
       .from('providers')
       .select(`
-        id, slug, status, photo_path,
+        id, slug, status, bio, photo_path,
         profiles!providers_profile_id_fkey!inner(display_name, telegram_user_id),
         provider_categories!provider_categories_provider_id_fkey(category_id, price_from_ars, categories!provider_categories_category_id_fkey(slug)),
         provider_barrios!provider_barrios_provider_id_fkey(barrio_id, barrios!provider_barrios_barrio_id_fkey(slug, name_es, name_ru, name_en))
@@ -51,6 +51,7 @@ export async function GET(request: NextRequest, context: {params: Promise<{provi
       provider: {
         id: provider.id,
         slug: provider.slug,
+        bio: provider.bio ?? null,
         photoPath: provider.photo_path ?? null,
         displayName: profile?.display_name ?? 'Profesional',
         categories,
